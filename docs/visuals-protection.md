@@ -6,7 +6,7 @@ Java counterparts are `chunk_init/init_locked_chunk`, `chunk_proximity/on_chunk_
 
 The Bedrock replacement is an original simple custom entity, `chunklock:border_wall`, rendered with a 16 by 64 block tiled slab and a procedural cyan RGBA texture. The material is `entity_alphablend`. The updated 0.125-block depth separates its front/back surfaces; adjacent tiles use exact matching widths. Alpha sorting artifacts can still occur and require in-game checking.
 
-Geometry, client entity, render controller and texture live under `resource_packs/chunklock`; the passive server definition is under `behavior_packs/chunklock/entities`. Rebuild the original assets with `python tools/build_wall_assets.py`. A data module accompanies the script module, and both packs are version 0.2.1 with their existing pack UUIDs retained.
+Geometry, client entity, render controller and texture live under `resource_packs/chunklock`; the passive server definition is under `behavior_packs/chunklock/entities`. Rebuild the original assets with `python tools/build_wall_assets.py`. A data module accompanies the script module, and both packs are version 0.2.2 with their existing pack UUIDs retained.
 
 Official material reference: [Creating new entity types](https://learn.microsoft.com/en-us/minecraft/creator/documents/introductiontoaddentity).
 
@@ -84,3 +84,15 @@ API reference: [Entity.getAABB](https://learn.microsoft.com/en-us/minecraft/crea
 ## Darker blue wall appearance
 
 The procedural wall texture now uses RGBA `(25, 95, 220, 85)` (`#195FDC`, approximately 33% texture opacity), replacing `(45, 185, 255, 30)` (approximately 12%). This is a presentation-only change requested by the user. The same wall renderer consumes the regenerated texture; geometry, immunity, protection and persistent chunk state are unchanged. Actual blended opacity depends on visible surfaces and lighting. Fully restart Minecraft to reload the resource texture. The asset was regenerated and deployed; the new appearance has not yet been verified in Minecraft.
+
+## Lighting-independent walls and client prediction
+
+The user reported black walls after the color adjustment. The previous `entity_alphablend` material used environmental lighting while helper anchors can be inside dark terrain. The renderer now retains alpha blending and the same PNG color/opacity, but sets `ignore_lighting: true` in the render controller, following the built-in allay example. Both packs and their dependency are version 0.2.2, retaining UUIDs. There are no anchor, collision, damage or access changes. The Java presentation counterparts remain `chunk_init/init_locked_chunk` and the proximity helper lifecycle; this lighting override is Bedrock-specific presentation behavior.
+
+The current stable 2.6 API provides cancellable pre-break and pre-interaction hooks, already used by `protection.ts`. It has no stable world pre-placement callback in the installed type definitions; `playerPlaceBlock` is an after-event. Existing protection cancels the server operation rather than restoring broken blocks in an after-event. These server callbacks do not offer a documented way to suppress all local predicted block appearances, crack animations or hand swings. Do not claim that a before-event guarantees zero client flicker.
+
+A client-targetable shield was discussed as a possible experiment, not a proven fix. It could also intercept attacks on mobs protruding through the border. The user chose to preserve that combat behavior, so no shield, global Adventure-mode switching, terrain replacement or new client input restriction was added. The brief predicted appearance remains a known limitation.
+
+Primary rendering evidence: [Mojang allay render controller](https://github.com/Mojang/bedrock-samples/blob/main/resource_pack/render_controllers/allay.render_controllers.json), [render controller schema](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/visualreference/render_controller.v1.8.0?view=minecraft-bedrock-stable). Protection reference: [Working with events](https://learn.microsoft.com/en-us/minecraft/creator/documents/scripting/events?view=minecraft-bedrock-stable).
+
+Runtime verification on Bedrock 1.26.63: after a full restart, the final alpha-blended, lighting-independent walls appeared blue at night, with terrain, mobs and the player visible through them in third-person view. The startup report showed 24 helpers at 100 health with stable IDs. The camera was returned to first-person and the existing test world left open. This verifies the reported dark-wall case on this machine; it does not establish every graphics mode or device.

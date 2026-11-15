@@ -10,7 +10,8 @@
       ],
       "textures": [
         "Texture.default"
-      ]
+      ],
+      "ignore_lighting": true
     }
   }
 }

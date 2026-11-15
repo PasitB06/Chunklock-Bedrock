@@ -45,7 +45,7 @@ write(RP / 'render_controllers/border_wall.render_controllers.json', {
     'format_version': '1.8.0',
     'render_controllers': {'controller.render.chunklock.border_wall': {
         'geometry': 'Geometry.default', 'materials': [{'*': 'Material.default'}],
-        'textures': ['Texture.default']
+        'textures': ['Texture.default'], 'ignore_lighting': True
     }}
 })
 # Exact tile edges avoid overlapping adjacent faces. Two-pixel thickness keeps

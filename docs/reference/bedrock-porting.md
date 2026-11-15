@@ -19,7 +19,7 @@ The [chunk prototype](../chunk-prototype.md) implements persistent dimension-awa
 | Price scaling | init_locked_chunk_unlock_item | Separate dimension counters and roll-time costs; preserve or explicitly revise the four difficulty formulas | Not implemented |
 | Movement/mining protection | collision/*, interaction helpers | Locked-block breaking/right-click cancellation and adjacent placement checks | Block protection implemented for testing; movement protection not implemented |
 | Player proximity | tick_chunk_player_proximity_check, chunk_proximity/* | Relevant-state transitions and bounded presentation/payment work | Not implemented |
-| Borders and prices | render/update/kill helpers, block/item/text displays | Nearby dark-blue translucent custom wall entities with deduplicated segments | Walls implemented; suffocation fix verified with stable live helper IDs; full alignment pending; price display not implemented |
+| Borders and prices | render/update/kill helpers, block/item/text displays | Nearby dark-blue translucent custom wall entities with deduplicated segments and lighting-independent rendering | Walls implemented; suffocation fix verified with stable live helper IDs; full alignment pending; price display not implemented |
 | Item payments | tick_item_in_chunk, check_submit/success/failure | Proven payer ownership, ID validation, deductions and single-return handling for excess/wrong items | Not implemented |
 | Unlocking and totals | unlock_current_chunk | One state transition, helper cleanup and correct world/payer credits | Not implemented |
 | Dimension transitions | util/change_dimension, dimension/* | Destination readiness and separate paid/automatic starting access | Not implemented |
