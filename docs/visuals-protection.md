@@ -14,7 +14,15 @@ Official material reference: [Creating new entity types](https://learn.microsoft
 
 Marker records remain entity-free and unchanged. Access uses separate world dynamic properties, keyed by dimension and chunk coordinates. On this feature's first encounter with each player in each dimension, their current chunk becomes open and a persistent player flag prevents walking/rejoining from unlocking more chunks. This also provides a starting area in worlds used to test the earlier marker prototype. Each newly encountered player can contribute a starting chunk; access is shared globally.
 
-Every other chunk is treated as locked, including chunks without a marker record. No payment/unlock command is provided yet. Movement collision is not implemented: players can still walk/fly through the visual walls for debugging, but block protection applies in locked terrain regardless of player location or Creative mode.
+Every other chunk is treated as locked, including chunks without a marker record. No payment/unlock command is provided yet. `collision.ts` checks every player once per tick and teleports non-Spectator players back when their current position enters a locked chunk. Block protection applies in locked terrain regardless of player location or Creative mode.
+
+## Movement collision
+
+The Java behavior is implemented by `post_tick_player`, which refreshes a player's safe-position marker while the current chunk is open, and `collision/player_chunk_collision` -> `exit_locked_chunk`, which teleports the player to that marker when their current chunk is locked. `tick_player` calls the collision function every tick and skips Spectator mode.
+
+The Bedrock counterpart is `scripts/collision.ts`, started once from `main.ts` after access seeding. Each one-tick interval captures the current position and rotation for every connected player. Positions are held per player and dimension; an open current chunk replaces the previous safe position, while a locked current chunk sends non-Spectator players back to that dimension's previous safe position. A recovered spawn point or nearest known open cell is used if no in-memory checkpoint exists. Safe positions persist on the player and refresh once per second so they survive world or script reloads. Input is not disabled, and movement may press against the boundary and cause repeated short teleports. Spectator movement is exempt, matching the Java reference.
+
+This subsystem is new Bedrock script behavior connected to the existing dimension-aware open-cell properties. It does not modify marker records, grant access on movement after a dimension is seeded, or change block placement/mining protection. The one-tick script interval is the closest available equivalent to Java's tick flow; the stable API has no distinct end-of-tick callback. Runtime checks should cover all four edges, diagonal entry, negative coordinates, jumping/flying, knockback, respawn, dimension changes and world rejoin.
 
 ## Rendering lifecycle and limits
 
@@ -35,11 +43,12 @@ Stationary projectiles are retired from tracking after five idle ticks. If the t
 ## Manual verification
 
 1. Save and leave the world. Restart Minecraft to refresh resource definitions, then open a new Creative test world with both Chunklock packs active. An existing test world is also supported but seeds access at the current location the first time this feature runs.
-2. Wait several seconds for the four cyan walls to fill their height segments. Check both sides and look up/down. They should not place or replace terrain blocks.
+2. Wait several seconds for the four blue walls to fill their height segments. Check both sides and look up/down. They should not place or replace terrain blocks.
 3. Mine/use a block inside the starting chunk: it should work. Target a block outside it: breaking/right-clicking should be denied. Try placement over the border and interacting with a chest/entity outside.
 4. Fly away and return; leave/rejoin the world. Check no duplicate walls and no additional access granted by movement/rejoin. Test different player heights and dimensions.
-5. Shoot slow/fast and close-range projectiles toward locked terrain. Record any same-tick impacts; perfect projectile prevention has not been established.
-6. Inspect Settings -> Creator -> Content Log if an entity/texture is missing or Minecraft reports a pack-loading error. The previous generic pack-loading warning remains unclassified until actual logs identify its source.
+5. Walk, jump and fly across each border into a locked cell. The player should return to the previous tick's safe position. Repeat for diagonal corners, negative coordinates, after respawn, after a dimension change and after world rejoin. Spectator mode is exempt.
+6. Shoot slow/fast and close-range projectiles toward locked terrain. Record any same-tick impacts; perfect projectile prevention has not been established.
+7. Inspect Settings -> Creator -> Content Log if an entity/texture is missing or Minecraft reports a pack-loading error. The previous generic pack-loading warning remains unclassified until actual logs identify its source.
 
 Automated tests exercise geometry planning, negative coordinates, deduplication, access persistence, callback cancellation and projectile path traversal using a simulated Minecraft API. Build/package validation does not establish visual quality, material compatibility or game performance.
 
@@ -95,4 +104,11 @@ A client-targetable shield was discussed as a possible experiment, not a proven 
 
 Primary rendering evidence: [Mojang allay render controller](https://github.com/Mojang/bedrock-samples/blob/main/resource_pack/render_controllers/allay.render_controllers.json), [render controller schema](https://learn.microsoft.com/en-us/minecraft/creator/reference/content/visualreference/render_controller.v1.8.0?view=minecraft-bedrock-stable). Protection reference: [Working with events](https://learn.microsoft.com/en-us/minecraft/creator/documents/scripting/events?view=minecraft-bedrock-stable).
 
+## Movement collision implementation status
+
+The per-tick return-to-safe-position behavior is implemented in `scripts/collision.ts`. It follows the Java checkpoint/collision flow described above, with a player dynamic-property backup per dimension. The implementation has passed the TypeScript build and lint; movement has not yet been verified in Minecraft. The existing Creative world is ready for manual border-crossing checks after script reload.
+
 Runtime verification on Bedrock 1.26.63: after a full restart, the final alpha-blended, lighting-independent walls appeared blue at night, with terrain, mobs and the player visible through them in third-person view. The startup report showed 24 helpers at 100 health with stable IDs. The camera was returned to first-person and the existing test world left open. This verifies the reported dark-wall case on this machine; it does not establish every graphics mode or device.
+
+
+This movement collision capability was added in Behavior Pack version 0.2.3. It updates the Behavior Pack version only; its resource dependency remains at 0.2.2.

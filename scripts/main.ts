@@ -4,11 +4,13 @@ import { startProtection } from "./protection.js";
 import { startWalls } from "./walls.js";
 import { startProjectiles } from "./projectiles.js";
 import { startWallDiagnostics } from "./wall-diagnostics.js";
+import { startCollision } from "./collision.js";
 
 startProtection();
 system.run(() => {
   startWallDiagnostics();
   startWalls();
+  startCollision();
   startChunks();
   startProjectiles();
 });
