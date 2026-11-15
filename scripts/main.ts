@@ -1,7 +1,15 @@
 import { system, world } from "@minecraft/server";
 import { startChunks } from "./chunks.js";
+import { startProtection } from "./protection.js";
+import { startWalls } from "./walls.js";
+import { startProjectiles } from "./projectiles.js";
 
-system.run(() => startChunks());
+startProtection();
+system.run(() => {
+  startWalls();
+  startChunks();
+  startProjectiles();
+});
 
 // A small smoke check: each player sees this once when joining the world.
 world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {

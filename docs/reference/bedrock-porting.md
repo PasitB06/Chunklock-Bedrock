@@ -5,7 +5,7 @@ Read [runtime-flow](runtime-flow.md), [state-model](state-model.md) and the rele
 
 ## Current status
 
-The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. No helper entities are spawned. Runtime behavior and performance await user testing. Locking, payment and progression remain unimplemented.
+The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime appearance/performance and best-effort projectile interception await testing. Movement locking, payment and progression remain unimplemented.
 
 ## Responsibility map
 
@@ -17,13 +17,13 @@ The [chunk prototype](../chunk-prototype.md) implements persistent dimension-awa
 | Neighbor expansion | init_neighbors and directional helpers | Bounded player-nearby cardinal propagation with loaded-center checks | Experimental prototype; manual verification pending |
 | Weighted selection | roll_chunk_unlock_item, loot_table/* | Preserve nested weights/count evaluation and map supported item/biome identifiers | Not implemented |
 | Price scaling | init_locked_chunk_unlock_item | Separate dimension counters and roll-time costs; preserve or explicitly revise the four difficulty formulas | Not implemented |
-| Movement/mining protection | collision/*, interaction helpers | Player-specific safe positions and dimension-correct permission checks, separate from visuals | Not implemented |
+| Movement/mining protection | collision/*, interaction helpers | Locked-block breaking/right-click cancellation and adjacent placement checks | Block protection implemented for testing; movement protection not implemented |
 | Player proximity | tick_chunk_player_proximity_check, chunk_proximity/* | Relevant-state transitions and bounded presentation/payment work | Not implemented |
-| Borders and prices | render/update/kill helpers, block/item/text displays | Bedrock-supported presentation with authoritative costs/permissions stored independently | Not implemented |
+| Borders and prices | render/update/kill helpers, block/item/text displays | Nearby cyan translucent custom wall entities with deduplicated segments | Walls implemented for testing; price display not implemented |
 | Item payments | tick_item_in_chunk, check_submit/success/failure | Proven payer ownership, ID validation, deductions and single-return handling for excess/wrong items | Not implemented |
 | Unlocking and totals | unlock_current_chunk | One state transition, helper cleanup and correct world/payer credits | Not implemented |
 | Dimension transitions | util/change_dimension, dimension/* | Destination readiness and separate paid/automatic starting access | Not implemented |
-| Projectiles/pearls | projectile/*, pearl/* | Owner association and appropriate stopping/destruction; test high speeds and teleporting | Not implemented |
+| Projectiles/pearls | projectile/*, pearl/* | Bounded component tracking with swept-cell and velocity lookahead checks | Best-effort interception implemented; no pre-hit guarantee |
 | Commands and difficulty | triggers, chunk_difficulty/*, reroll | Permission-aware commands/menus and the post-first-unlock restriction | Not implemented |
 | Item names and dye | translate_item_name/*, dye predicates, dye_chunk | Localization and dye handling through supported Bedrock mechanisms, without Java NBT/macros | Not implemented |
 | Milestones/advancements | advancements, render messages | Add-on-owned progression separating world/personal totals; not native Java advancements | Not implemented |

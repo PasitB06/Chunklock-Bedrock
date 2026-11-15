@@ -4,16 +4,22 @@
     "name": "Chunklock Behavior",
     "description": "Chunklock Bedrock development starter",
     "uuid": "36ca2e3f-8cf4-4243-a44b-7e6bf849390b",
-    "version": [0, 1, 0],
+    "version": [0, 2, 0],
     "min_engine_version": [1, 21, 90]
   },
   "modules": [
+    {
+      "type": "data",
+      "uuid": "0308f521-1e65-4fbb-8acb-0bc7971c16bc",
+      "version": [0, 2, 0],
+      "description": "Chunklock custom entities"
+    },
     {
       "description": "Chunklock TypeScript scripts",
       "language": "javascript",
       "type": "script",
       "uuid": "aac2f165-fa10-414b-98f7-9ba0ce6d2f29",
-      "version": [0, 1, 0],
+      "version": [0, 2, 0],
       "entry": "scripts/main.js"
     }
   ],
@@ -24,7 +30,7 @@
     },
     {
       "uuid": "830b6dd0-3665-484e-96a5-49291ea28c1e",
-      "version": [0, 1, 0]
+      "version": [0, 2, 0]
     }
   ]
 }

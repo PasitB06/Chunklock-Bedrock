@@ -1,0 +1,20 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "chunklock:border_wall",
+      "materials": {
+        "default": "entity_alphablend"
+      },
+      "textures": {
+        "default": "textures/entity/border_wall"
+      },
+      "geometry": {
+        "default": "geometry.chunklock.border_wall"
+      },
+      "render_controllers": [
+        "controller.render.chunklock.border_wall"
+      ]
+    }
+  }
+}
