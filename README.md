@@ -2,7 +2,7 @@
 
 A TypeScript project for Minecraft Bedrock, using the behavior of a local Java Chunklock datapack as a development reference.
 
-**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See [prototype instructions](docs/chunk-prototype.md). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are now available for testing; see [visuals and protection](docs/visuals-protection.md). The Java loot tables now compile into Bedrock TypeScript data; runtime requirement rolling, pricing, payments and progression remain in progress.
+**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See [prototype instructions](docs/chunk-prototype.md). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are now available for testing; see [visuals and protection](docs/visuals-protection.md). The Java loot tables compile and roll in Bedrock TypeScript, with the source cost formula available; per-chunk requirement storage, payment and progression remain in progress.
 
 This directory is the Git repository root. The Java reference is kept outside the repository at `../java_mod/data` and is not published to GitHub.
 

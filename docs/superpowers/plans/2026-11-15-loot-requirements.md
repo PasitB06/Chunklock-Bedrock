@@ -47,7 +47,7 @@
 - [x] Run `python -m unittest discover -s tests -p "test_loot_table_compiler.py"`; confirm the new imports/functions fail before implementation.
 - [x] Implement source discovery via `CHUNKLOCK_JAVA_REFERENCE` or `../java_mod/data`, validation of all 151 tables and their references, and deterministic TypeScript output.
 - [x] Run the compiler test and `python tools/build_loot_tables.py --check`; confirm all source tables validate and generated output matches.
-- [ ] Commit and push the compiler/data capability.
+- [x] Commit and push the compiler/data capability (`e3e6683`).
 
 ### Task 2: Roll requirements and apply scaling
 
@@ -59,14 +59,18 @@
 **Interfaces:**
 - `rollLootTable(tableId, random?)` returns the Java source item ID and final base count.
 - `resolveBiomeTable(bedrockBiomeId)` returns an available biome table or `chunklock:biome/all_biome`.
-- `resolveBedrockItemId(sourceItemId)` returns the available Bedrock ID, retaining the source ID on fallback.
+- `resolveBedrockItemId(sourceItemId)` returns the selected Bedrock ID, original source ID and whether stone fallback was used.
 - `calculateRemainingCost(baseCount, dimensionId, unlockedCount, difficulty)` implements the exact source formula.
 
-- [ ] Write tests for deterministic weighted selection, nested count override, inclusive count ranges, biome aliases/fallback, item fallback, and every difficulty/step boundary.
-- [ ] Run `node --test tests/loot.test.cjs`; expect failures because runtime functions are absent.
-- [ ] Implement weighted selection by pool and recursion without flattening, the gravel adapter, ID maps, and the formula.
-- [ ] Run `node --test tests/loot.test.cjs`; expect all new cases to pass.
+- [x] Write tests for deterministic weighted selection, nested count override, inclusive count ranges, biome aliases/fallback, item fallback, and every difficulty/step boundary.
+- [x] Run `node --test tests/loot.test.cjs`; confirm failures because runtime functions are absent.
+- [x] Implement weighted selection by pool and recursion without flattening, the gravel adapter, ID maps, and the formula.
+- [x] Run `node --test tests/loot.test.cjs`; all focused cases pass.
 - [ ] Commit and push the standalone roller/scaling capability.
+
+## Follow-up design approved for the next milestone
+
+The requirement display will become a compact clickable entity on each eligible locked-chunk border. Payment will use the clicking player's held main-hand item through `playerInteractWithEntity`, with scheduled inventory changes, a five-tick debounce, partial payment and direct player credit. A barrier remains a non-consuming test shortcut. Do not implement item-drop payment.
 
 ### Task 3: Persist locked-chunk requirements
 

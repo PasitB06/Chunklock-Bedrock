@@ -5,7 +5,7 @@ Read [runtime-flow](runtime-flow.md), [state-model](state-model.md) and the rele
 
 ## Current status
 
-The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime diagnostics confirmed and corrected helper suffocation deaths; 24 loaded helpers retained full health and stable IDs in a stationary test. Full visual alignment and performance remain unverified. Stable API 2.6.0 cancels attack damage to targets wholly in locked cells before damage is applied; positive collision-box overlap with open terrain permits combat (regression-tested, gameplay verification pending), in addition to best-effort projectile removal. Movement return-to-safe-position logic is implemented with gameplay verification pending. The compiler converts all 151 local Java loot tables into checked TypeScript source data; runtime rolling, pricing, payments and progression remain in progress.
+The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime diagnostics confirmed and corrected helper suffocation deaths; 24 loaded helpers retained full health and stable IDs in a stationary test. Full visual alignment and performance remain unverified. Stable API 2.6.0 cancels attack damage to targets wholly in locked cells before damage is applied; positive collision-box overlap with open terrain permits combat (regression-tested, gameplay verification pending), in addition to best-effort projectile removal. Movement return-to-safe-position logic is implemented with gameplay verification pending. The compiler converts all 151 local Java loot tables into checked TypeScript source data, and standalone rolling/scaling utilities are implemented; per-chunk requirement persistence, payment and progression remain in progress.
 
 ## Responsibility map
 
@@ -15,12 +15,12 @@ The [chunk prototype](../chunk-prototype.md) implements persistent dimension-awa
 | Joining players | init_player, pre_tick_player | Initialize each player and find/create their starting chunk in the correct dimension | Readiness message only; no Chunklock initialization |
 | Chunk identity | chunk_init/*, find_chunk_coords/center | Dimension-aware persistent records with floor-based centers | Experimental prototype; manual verification pending |
 | Neighbor expansion | init_neighbors and directional helpers | Bounded player-nearby cardinal propagation with loaded-center checks | Experimental prototype; manual verification pending |
-| Weighted selection | roll_chunk_unlock_item, loot_table/* | Preserve nested weights/count evaluation and map supported item/biome identifiers | All 151 source tables compile with nested entries and ordered `set_count`; runtime roller and ID mapping not implemented |
-| Price scaling | init_locked_chunk_unlock_item | Separate dimension counters and roll-time costs; preserve or explicitly revise the four difficulty formulas | Not implemented |
+| Weighted selection | roll_chunk_unlock_item, loot_table/* | Preserve nested weights/count evaluation and map supported item/biome identifiers | [151-table compiler](../../tools/build_loot_tables.py), [roller and resolvers](../../scripts/loot.ts); all source tables smoke-rolled in [loot tests](../../tests/loot.test.cjs); per-chunk integration pending |
+| Price scaling | init_locked_chunk_unlock_item | Separate dimension counters and roll-time costs; preserve or explicitly revise the four difficulty formulas | [Java formula](../../scripts/loot.ts) tested at difficulty/step boundaries in [loot tests](../../tests/loot.test.cjs); per-chunk application and persistence pending |
 | Movement/mining protection | collision/*, interaction helpers | Locked-block breaking/right-click cancellation, adjacent placement checks and per-tick return to the previous safe position | Block hooks and per-tick collision implemented; movement coordinate correction awaits gameplay verification |
 | Player proximity | tick_chunk_player_proximity_check, chunk_proximity/* | Relevant-state transitions and bounded presentation/payment work | Not implemented |
 | Borders and prices | render/update/kill helpers, block/item/text displays | Nearby dark-blue translucent custom wall entities with deduplicated segments and lighting-independent rendering | Walls implemented; suffocation fix verified with stable live helper IDs; full alignment pending; price display not implemented |
-| Item payments | tick_item_in_chunk, check_submit/success/failure | Proven payer ownership, ID validation, deductions and single-return handling for excess/wrong items | Not implemented |
+| Item payments | tick_item_in_chunk, check_submit/success/failure | Validate the required item and deduct payment from the clicking player's main hand; attribute credit directly to that player | Planned: right-click `chunklock:requirement_display`; event, inventory and cancellation behavior must be verified against stable API 2.6.0 |
 | Unlocking and totals | unlock_current_chunk | One state transition, helper cleanup and correct world/payer credits | Not implemented |
 | Dimension transitions | util/change_dimension, dimension/* | Destination readiness and separate paid/automatic starting access | Not implemented |
 | Projectiles/pearls | projectile/*, pearl/* | Bounded component tracking with swept-cell and velocity lookahead checks | Pre-damage guard added in 0.2.1; projectile removal remains best-effort |
@@ -54,7 +54,7 @@ Choose supported equivalents that fulfill the table's responsibilities. Do not a
 Open questions to resolve when the relevant system is implemented:
 
 1. Persistence and migration of many chunk records across world reloads and updates.
-2. A stable payment mechanism with reliable payer identity. If thrown items cannot meet the contract, explain and agree on an alternative.
+2. Verify that the selected requirement-display click event, inventory deduction and per-player debounce meet the payment contract in the stable API and multiplayer gameplay.
 3. Border, price and interaction presentation for multiple players at different heights.
 4. Projectile and teleport protection without gaps between position checks.
 5. Mapping every Java item/biome identifier to the target Bedrock registry.

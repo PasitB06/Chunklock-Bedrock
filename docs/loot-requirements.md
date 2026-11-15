@@ -4,7 +4,7 @@ This document describes Milestone 1 of the Bedrock port: compile the local Java 
 
 ## Implementation status
 
-The source-table compiler and generated TypeScript data are implemented. The generated module contains all 151 custom tables and is checked against the local reference with `python tools/build_loot_tables.py --check`. Runtime rolling, biome/item mapping, cost scaling and per-chunk persistence are still pending.
+The source-table compiler ([`tools/build_loot_tables.py`](../tools/build_loot_tables.py)), generated TypeScript data ([`scripts/loot-tables-data.ts`](../scripts/loot-tables-data.ts)), nested weighted roller, biome resolver, item-ID resolver and Java cost formula ([`scripts/loot.ts`](../scripts/loot.ts)) are implemented. The generated module contains all 151 custom tables and is checked against the local reference with `python tools/build_loot_tables.py --check`. Per-chunk persistence and integration with the nearby chunk scan are still pending.
 
 ## Java source behavior
 
@@ -40,10 +40,16 @@ Biome selection queries `Dimension.getBiome` at the chunk center and the same fi
 
 Requirements are initialized only for cells with a chunk record that are not open. Existing locked records without a requirement are backfilled. Work is bounded per interval so opening or re-entering a world does not roll every recorded chunk at once.
 
-The stable Script API version is pinned to 2.6.0. The implementation uses [`Dimension.getBiome`](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/dimension?view=minecraft-bedrock-stable) and [`ItemTypes.get`](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/itemtypes?view=minecraft-bedrock-stable).
+The stable Script API version is pinned to 2.6.0. The item resolver uses [`ItemTypes.get`](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/itemtypes?view=minecraft-bedrock-stable); the persistence integration will use [`Dimension.getBiome`](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/dimension?view=minecraft-bedrock-stable).
 
 ## Parity boundary
 
 The table graph, integer weights, nested selection steps, count ranges, and scaling formulas can be reproduced for the current source. Bedrock biome IDs do not always identify the same regions as Java, and some Java items may not exist in Bedrock. Biome aliases and the explicit item fallback make the system usable, but those cases prevent a claim of identical outcomes for every world and every item.
 
-Future milestones can consume this state to render requirements and process player-dropped items. The current milestone does not use the item-drop event, change prices after rolling, or unlock chunks.
+## Follow-up: requirement displays and direct-hand payment
+
+The next presentation/payment milestone uses a `chunklock:requirement_display` entity on each eligible side of a locked chunk. It appears only when that side borders an open chunk and a player is within 24 blocks. The display sits at the side midpoint and follows the nearest player's eye height. Its compact 0.8 by 0.9 block collision box keeps the interaction target near the item icon instead of blocking the whole border. It holds the required item in its main hand and shows the item name and remaining quantity in its name tag. It must be protected from all damage like the border wall.
+
+Payment uses `world.beforeEvents.playerInteractWithEntity` on that display. The handler cancels the normal interaction and schedules inventory mutation with `system.run`, then reads `event.player`'s main-hand equipment. A five-tick per-player debounce prevents repeated processing. An empty hand reports the current requirement; a wrong item is not consumed and produces feedback; a matching item pays `min(stack amount, remaining cost)`. In non-Creative play, only the paid count is removed and any excess stays in the player's hand. A held barrier is a non-consuming test shortcut. Partial payments update the saved requirement and displayed count; a completed payment unlocks the chunk and credits the clicking player.
+
+This design attributes payment directly to the player who clicked. Future implementation must verify all event, cancellation, inventory and entity-component calls against the pinned stable API 2.6.0. The current milestone does not implement the display entity, payment interaction, price mutation or chunk unlocking.
