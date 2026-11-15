@@ -2,7 +2,7 @@
 
 A TypeScript project for Minecraft Bedrock, using the behavior of a local Java Chunklock datapack as a development reference.
 
-**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See [prototype instructions](docs/chunk-prototype.md). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are now available for testing; see [visuals and protection](docs/visuals-protection.md). Payments, pricing and progression remain unimplemented.
+**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See [prototype instructions](docs/chunk-prototype.md). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are now available for testing; see [visuals and protection](docs/visuals-protection.md). The Java loot tables now compile into Bedrock TypeScript data; runtime requirement rolling, pricing, payments and progression remain in progress.
 
 This directory is the Git repository root. The Java reference is kept outside the repository at `../java_mod/data` and is not published to GitHub.
 
@@ -13,6 +13,7 @@ This directory is the Git repository root. The Java reference is kept outside th
 | [Reference guide](docs/reference/README.md) | Explains the Java system and how its parts connect |
 | [Domain glossary](CONTEXT.md) | Defines chunks, unlock requirements, payers and progress |
 | [Bedrock mapping](docs/reference/bedrock-porting.md) | Maps responsibilities to future Bedrock work and records implementation status |
+| [Loot requirements](docs/loot-requirements.md) | Describes the Java table compiler and planned per-chunk requirement flow |
 | [Agent rules](AGENTS.md) | Requires English-only writing, reference-based development and a commit/push for each completed capability |
 
 All repository documentation, comments, authored messages and commit messages must be written in English.
@@ -52,6 +53,8 @@ Building and copying files does not prove gameplay works; the readiness message 
 | Create a production add-on | `npm.cmd run mcaddon:production` |
 | Check documentation without Java source | `python tools/check_docs.py` |
 | Check generated reference docs against local Java source | `python tools/reference_docs.py --check` |
+| Compile local Java loot tables | `python tools/build_loot_tables.py` |
+| Check compiled loot data is current | `python tools/build_loot_tables.py --check` |
 
 Watch mode handles TypeScript, JSON, lang and PNG changes. Stop it with Ctrl+C.
 After script changes, save and leave the world, then re-enter it; `/reload` is another option if commands are enabled.

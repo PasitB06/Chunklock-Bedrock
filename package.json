@@ -22,7 +22,9 @@
     "mcaddon": "just-scripts mcaddon",
     "mcaddon:production": "just-scripts mcaddon --production",
     "dev": "just-scripts local-deploy --watch",
-    "test": "node --test tests/*.test.cjs"
+    "test": "node --test tests/*.test.cjs",
+    "loot-tables:build": "python tools/build_loot_tables.py",
+    "loot-tables:check": "python tools/build_loot_tables.py --check"
   },
   "dependencies": {
     "@minecraft/server": "2.6.0"
