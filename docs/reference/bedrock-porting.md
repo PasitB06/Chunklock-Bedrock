@@ -5,7 +5,7 @@ Read [runtime-flow](runtime-flow.md), [state-model](state-model.md) and the rele
 
 ## Current status
 
-The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime diagnostics confirmed and corrected helper suffocation deaths; 24 loaded helpers retained full health and stable IDs in a stationary test. Full visual alignment and performance remain unverified. Stable API 2.6.0 now cancels attack damage to targets in locked cells before damage is applied, in addition to best-effort projectile removal. Movement locking, payment and progression remain unimplemented.
+The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime diagnostics confirmed and corrected helper suffocation deaths; 24 loaded helpers retained full health and stable IDs in a stationary test. Full visual alignment and performance remain unverified. Stable API 2.6.0 cancels attack damage to targets wholly in locked cells before damage is applied; positive collision-box overlap with open terrain permits combat (regression-tested, gameplay verification pending), in addition to best-effort projectile removal. Movement locking, payment and progression remain unimplemented.
 
 ## Responsibility map
 

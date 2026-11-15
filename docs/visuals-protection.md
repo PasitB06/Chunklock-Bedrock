@@ -28,7 +28,7 @@ Helpers have no gravity, physical collision, AI or damage response. Existing loa
 
 There is no physical interaction shield. Commands, pistons, fluids, fire spread and every other indirect mutation mechanism are not claimed to be protected by these hooks. The implemented hooks do not cover every possible indirect mutation mechanism.
 
-`projectiles.ts` tracks projectile components on spawn and adopts nearby existing projectiles every second. Each tick it checks the traversed X/Z segment and a one-velocity-step lookahead against locked cells, including intermediate cells and diagonal corner contact. It removes intercepted projectiles, with a maximum of 256 tracked entries. Entries outside 96 blocks of players are dropped. Projectile behavior inside locked areas is also suppressed.
+`projectiles.ts` tracks projectile components on spawn and adopts nearby existing projectiles every second. Each tick it checks the actually traversed X/Z segment against locked cells, including intermediate cells and diagonal corner contact. It removes intercepted projectiles, with a maximum of 256 tracked entries. Entries outside 96 blocks of players are dropped. Projectile behavior inside locked areas is also suppressed.
 
 Stationary projectiles are retired from tracking after five idle ticks. If the tracking capacity is full, additional projectiles are left untracked rather than deleted merely for exceeding the budget. This is **best-effort interception**, not a guaranteed pre-hit barrier: capacity, spawn/update ordering, projectile acceleration and same-tick collisions can allow damage before script interception. Stable API 2.6 has no cancellable pre-projectile-hit callback; the separate pre-damage guard protects target health. Do not treat after-hit callbacks as proof that damage was prevented.
 
@@ -67,3 +67,17 @@ The server definition now breathes in solids and water, has 100 health and uses 
 `wall-diagnostics.ts` is new Bedrock-only diagnostic behavior called once by `main.ts`, alongside the wall manager. It reads loaded helper IDs and health at 200 and 400 ticks, reports a baseline and comparison, and rate-limits actual death reports. It never changes access or spawns helpers. ID changes can be legitimate when players move or helpers reconcile; compare while stationary. With cheats already enabled, `/scriptevent chunklock:wall_debug` also prints up to three helper positions per dimension; enabling cheats is not required for the automatic summaries.
 
 After a full Minecraft restart and world re-entry on Bedrock 1.26.63, the stationary test reported `Alive=24, minHP=100` twice and `IDs=stable` on the second sample. No repeated deaths or falling sheets were observed in that session. The user separately confirmed the melee and close-range bow protection. Full visual alignment at every height, dimension and view angle remains unverified; the low-alpha surface is faint at night. The existing generic pack-loading warning is still unclassified.
+
+## Border-straddling mob correction
+
+The previous damage guard classified a whole mob from `Entity.location`. A mob whose position was outside stayed invulnerable even when its body extended inside. Projectile velocity lookahead could also delete an arrow on the open side before it reached that exposed body.
+
+`protection.ts` now reads stable API 2.6 `Entity.getAABB()` during the pre-damage callback. Positive horizontal collision-box overlap with any open chunk permits attack damage; mere contact at the boundary does not. The decision uses actual collision bounds, including size differences between mobs, negative coordinates and diagonal corners. It checks at most 64 cells; larger custom bounds fail closed. Unavailable or degenerate bounds fall back to the previous location rule. Wall helpers remain unconditionally immune. Block placement, mining, right-click interactions and access state are unchanged.
+
+This is new Bedrock combat policy, not a claim of exact Java parity. The Java `chunk_proximity/on_chunk_become_relevant` function supplies stacked interaction shields; this port instead calls the collision-overlap policy from the pre-damage event, reads shared open-cell state and returns only a damage cancellation decision. It does not change neighboring chunks, marker records or unlock progress. A straddling target is damageable as a whole: the callback does not identify an exact melee contact point, so this does not promise per-body-part protection.
+
+`projectiles.ts` now intercepts only actual traversed paths. Removing velocity lookahead lets arrows reach an exposed hitbox before crossing the boundary. An arrow can briefly cross before the next poll; the pre-damage guard still protects targets whose collision bounds are wholly locked. Non-damage projectile effects remain best effort.
+
+Regression tests reproduce both previous failures and cover four border directions, diagonal overlap, exact boundary contact, wholly locked targets, and actual arrow crossings. These tests use a simulated API; the new boundary behavior still requires Minecraft gameplay verification after leaving and reopening the world. No resource restart is needed for these script-only changes.
+
+API reference: [Entity.getAABB](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/entity?view=minecraft-bedrock-stable#getaabb).

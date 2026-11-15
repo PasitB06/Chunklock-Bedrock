@@ -31,9 +31,8 @@ export function startProjectiles() {
         const entity = entry.entity;
         const current = entity.location;
         const velocity = entity.getVelocity();
-        const next = { x: current.x + velocity.x, z: current.z + velocity.z };
         const locked = (x: number, z: number) => !isOpenCell(entity.dimension.id, x, z);
-        if (segmentTouchesLocked(entry.previous, current, locked) || segmentTouchesLocked(current, next, locked)) {
+        if (segmentTouchesLocked(entry.previous, current, locked)) {
           entity.remove();
           tracked.delete(id);
         } else {

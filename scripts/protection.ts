@@ -1,5 +1,33 @@
-import { Direction, Player, system, world } from "@minecraft/server";
-import { isLocked } from "./access.js";
+import { Direction, Entity, Player, system, world } from "@minecraft/server";
+import { isLocked, isOpenCell } from "./access.js";
+
+// Positive horizontal hitbox overlap makes a border-straddling mob accessible.
+function hasOpenHitbox(target: Entity): boolean {
+  const dimension = target.dimension.id;
+  try {
+    const { center, extent } = target.getAABB();
+    const minX = center.x - Math.abs(extent.x),
+      maxX = center.x + Math.abs(extent.x);
+    const minZ = center.z - Math.abs(extent.z),
+      maxZ = center.z + Math.abs(extent.z);
+    if (![minX, maxX, minZ, maxZ].every(Number.isFinite) || maxX <= minX || maxZ <= minZ) {
+      return !isLocked(dimension, target.location.x, target.location.z);
+    }
+    const x0 = Math.floor(minX / 16),
+      x1 = Math.ceil(maxX / 16) - 1;
+    const z0 = Math.floor(minZ / 16),
+      z1 = Math.ceil(maxZ / 16) - 1;
+    // Bound work for unusually large custom entities; fail closed beyond the budget.
+    if ((x1 - x0 + 1) * (z1 - z0 + 1) > 64) return false;
+    for (let x = x0; x <= x1; x++) {
+      for (let z = z0; z <= z1; z++) if (isOpenCell(dimension, x, z)) return true;
+    }
+    return false;
+  } catch {
+    // Missing/unavailable collision bounds retain the previous position-based rule.
+    return !isLocked(dimension, target.location.x, target.location.z);
+  }
+}
 
 const notices = new Map<string, number>();
 function notify(player: Player) {
@@ -29,7 +57,7 @@ export function startProtection() {
       source.damagingProjectile ||
       source.cause === "entityAttack" ||
       source.cause === "projectile";
-    if (attack && isLocked(target.dimension.id, target.location.x, target.location.z)) {
+    if (attack && !hasOpenHitbox(target)) {
       event.cancel = true;
     }
   });

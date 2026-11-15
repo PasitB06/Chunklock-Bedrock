@@ -295,3 +295,74 @@ test("wall helpers breathe in terrain and use an unconditional damage sensor", (
   assert.equal(sensor.deals_damage, "no");
   assert.equal(sensor.cause, undefined);
 });
+
+test("combat permits real hitbox overlap with open terrain but rejects boundary-only contact", () => {
+  const callbacks = {};
+  const api = {
+    world: {
+      getDynamicProperty: (key) => (key.endsWith(":0:0") ? true : undefined),
+      beforeEvents: Object.fromEntries(
+        ["playerBreakBlock", "playerInteractWithBlock", "playerInteractWithEntity", "explosion", "entityHurt"].map(
+          (k) => [k, { subscribe: (fn) => (callbacks[k] = fn) }]
+        )
+      ),
+      afterEvents: { playerLeave: { subscribe: () => {} } },
+    },
+    system: { currentTick: 0, run: () => {} },
+    Direction: {},
+  };
+  load("protection", api).startProtection();
+  for (const cause of ["entityAttack", "projectile"]) {
+    for (const [x, z, allowed] of [
+      [16.1, 8, true],
+      [-0.1, 8, true],
+      [8, 16.1, true],
+      [8, -0.1, true],
+      [16.1, 16.1, true],
+      [16.5, 8, false],
+      [17, 8, false],
+    ]) {
+      const target = {
+        dimension: { id: "minecraft:overworld" },
+        location: { x, z },
+        getAABB: () => ({ center: { x, y: 1, z }, extent: { x: 0.5, y: 1, z: 0.5 } }),
+      };
+      const event = { hurtEntity: target, damageSource: { cause }, cancel: false };
+      callbacks.entityHurt(event);
+      assert.equal(event.cancel, !allowed, `${cause} at ${x},${z}`);
+    }
+  }
+});
+
+test("projectiles can reach exposed border hitboxes before crossing locked terrain", () => {
+  let spawn,
+    tick,
+    removed = 0;
+  const api = {
+    world: {
+      afterEvents: { entitySpawn: { subscribe: (fn) => (spawn = fn) } },
+      getAllPlayers: () => [],
+      getDynamicProperty: (key) => (key.endsWith(":0:0") ? true : undefined),
+    },
+    system: {
+      runInterval: (fn, n) => {
+        if (n === 1) tick = fn;
+      },
+    },
+  };
+  load("projectiles", api).startProjectiles();
+  const arrow = {
+    id: "border",
+    location: { x: 15, y: 1, z: 8 },
+    getComponent: () => ({}),
+    getVelocity: () => ({ x: 2, y: 0, z: 0 }),
+    dimension: { id: "minecraft:overworld", getPlayers: () => [{}] },
+    remove: () => removed++,
+  };
+  spawn({ entity: arrow });
+  tick();
+  assert.equal(removed, 0, "lookahead must not remove an arrow still on the open side");
+  arrow.location = { x: 17, y: 1, z: 8 };
+  tick();
+  assert.equal(removed, 1, "an actual crossing must still be intercepted");
+});
