@@ -46,6 +46,52 @@ function makeLoot(
   return load("loot", api, { "loot-tables-data": { LOOT_TABLES: tables } });
 }
 
+function makeRequirementHarness({
+  properties = {},
+  biomeId = "minecraft:plains",
+  dimensionId = "minecraft:overworld",
+  validItems,
+} = {}) {
+  const props = new Map(Object.entries(properties));
+  const biomeCalls = [];
+  const players = [];
+  let biomeUnavailable = false;
+  const dimension = {
+    id: dimensionId,
+    getBlock: () => ({}),
+    getBiome: (location) => {
+      biomeCalls.push({ ...location });
+      if (biomeUnavailable) throw new Error("unloaded biome location");
+      return { id: biomeId };
+    },
+    spawnParticle: () => {},
+  };
+  const world = {
+    getDynamicProperty: (key) => props.get(key),
+    setDynamicProperty: (key, value) => props.set(key, value),
+    getDynamicPropertyIds: () => [...props.keys()],
+    getAllPlayers: () => players,
+  };
+  const tables = {
+    "chunklock:biome/all_biome": table(item("minecraft:stone", 1, [count(1)])),
+    "chunklock:biome/plains": table(item("minecraft:oak_log", 1, [count(2)])),
+  };
+  const loot = makeLoot(tables, validItems);
+  const api = { world };
+  const modules = { loot };
+  const requirements = load("requirements", api, modules);
+  return {
+    props,
+    biomeCalls,
+    dimension,
+    players,
+    world,
+    requirements,
+    setBiomeUnavailable: (value) => (biomeUnavailable = value),
+    loadChunks: (system) => load("chunks", { world, system }, { ...modules, system }).startChunks(),
+  };
+}
+
 test("weighted rolls preserve table order and select by the configured weights", () => {
   const loot = makeLoot({
     "chunklock:biome/test": table(item("minecraft:stone", 2), item("minecraft:diamond", 8)),
@@ -186,4 +232,135 @@ test("roller rejects invalid random values and cyclic table references", () => {
 
   assert.throws(() => loot.rollLootTable("chunklock:biome/loop", () => 0), /Cyclic loot-table reference/);
   assert.throws(() => loot.rollLootTable("chunklock:biome/loop", () => 1), /random source/);
+});
+
+test("locked cells persist one biome-aware requirement and leave open access state unchanged", () => {
+  const cellKey = "chunklock:cell:minecraft:overworld:0:0";
+  const reqKey = "chunklock:req:minecraft:overworld:0:0";
+  const harness = makeRequirementHarness({ properties: { [cellKey]: 1 } });
+
+  assert.equal(harness.requirements.ensureChunkRequirement(harness.dimension, 0, 0), "created");
+  const requirement = JSON.parse(harness.props.get(reqKey));
+  assert.deepEqual(requirement, {
+    schemaVersion: 1,
+    state: "locked",
+    biomeId: "minecraft:plains",
+    tableId: "chunklock:biome/plains",
+    sourceItemId: "minecraft:oak_log",
+    itemId: "minecraft:oak_log",
+    baseCount: 2,
+    remainingCost: 2,
+    difficulty: 2,
+  });
+  assert.deepEqual(harness.biomeCalls[0], { x: 8, y: 128, z: 8 });
+  assert.equal(harness.props.get("chunklock:open:minecraft:overworld:0:0"), undefined);
+  assert.equal(harness.requirements.ensureChunkRequirement(harness.dimension, 0, 0), "existing");
+  assert.equal(harness.biomeCalls.length, 1, "existing requirements must not reroll");
+});
+
+test("open cells and missing cell records never receive requirements", () => {
+  const cellKey = "chunklock:cell:minecraft:overworld:0:0";
+  const open = makeRequirementHarness({
+    properties: { [cellKey]: 1, "chunklock:open:minecraft:overworld:0:0": true },
+  });
+  assert.equal(open.requirements.ensureChunkRequirement(open.dimension, 0, 0), "skipped");
+  assert.equal(open.props.has("chunklock:req:minecraft:overworld:0:0"), false);
+  assert.equal(open.biomeCalls.length, 0);
+
+  const missing = makeRequirementHarness();
+  assert.equal(missing.requirements.ensureChunkRequirement(missing.dimension, 0, 0), "skipped");
+  assert.equal(missing.biomeCalls.length, 0);
+});
+
+test("new requirements use the saved difficulty and that dimension's credited unlock count", () => {
+  const properties = {
+    "chunklock:cell:minecraft:overworld:1:0": 1,
+    "chunklock:difficulty": 3,
+    "chunklock:progress:unlocked:minecraft:overworld": 16,
+  };
+  const harness = makeRequirementHarness({ properties });
+
+  assert.equal(harness.requirements.ensureChunkRequirement(harness.dimension, 1, 0), "created");
+  const requirement = JSON.parse(harness.props.get("chunklock:req:minecraft:overworld:1:0"));
+  assert.equal(requirement.difficulty, 3);
+  assert.equal(requirement.remainingCost, 16);
+});
+
+test("unsupported Bedrock item IDs persist stone fallback and the original Java item ID", () => {
+  const harness = makeRequirementHarness({
+    properties: { "chunklock:cell:minecraft:overworld:0:0": 1 },
+    validItems: ["minecraft:stone"],
+  });
+
+  assert.equal(harness.requirements.ensureChunkRequirement(harness.dimension, 0, 0), "created");
+  const requirement = JSON.parse(harness.props.get("chunklock:req:minecraft:overworld:0:0"));
+  assert.equal(requirement.sourceItemId, "minecraft:oak_log");
+  assert.equal(requirement.itemId, "minecraft:stone");
+});
+
+test("unknown biomes use all_biome and End requirements use Y=64 and 32-chunk scaling", () => {
+  const fallback = makeRequirementHarness({
+    biomeId: "minecraft:unknown_biome",
+    properties: { "chunklock:cell:minecraft:overworld:0:0": 1 },
+  });
+  assert.equal(fallback.requirements.ensureChunkRequirement(fallback.dimension, 0, 0), "created");
+  const fallbackRequirement = JSON.parse(fallback.props.get("chunklock:req:minecraft:overworld:0:0"));
+  assert.equal(fallbackRequirement.tableId, "chunklock:biome/all_biome");
+  assert.equal(fallbackRequirement.itemId, "minecraft:stone");
+
+  const end = makeRequirementHarness({
+    dimensionId: "minecraft:the_end",
+    biomeId: "minecraft:the_end",
+    properties: {
+      "chunklock:cell:minecraft:the_end:0:0": 1,
+      "chunklock:progress:unlocked:minecraft:the_end": 32,
+    },
+  });
+  assert.equal(end.requirements.ensureChunkRequirement(end.dimension, 0, 0), "created");
+  assert.deepEqual(end.biomeCalls[0], { x: 8, y: 64, z: 8 });
+  const endRequirement = JSON.parse(end.props.get("chunklock:req:minecraft:the_end:0:0"));
+  assert.equal(endRequirement.remainingCost, 2);
+});
+
+test("unavailable biome queries retry later and corrupt stored requirements are not overwritten", () => {
+  const cellKey = "chunklock:cell:minecraft:overworld:0:0";
+  const reqKey = "chunklock:req:minecraft:overworld:0:0";
+  const harness = makeRequirementHarness({ properties: { [cellKey]: 1 } });
+  harness.setBiomeUnavailable(true);
+  assert.equal(harness.requirements.ensureChunkRequirement(harness.dimension, 0, 0), "deferred");
+  assert.equal(harness.props.has(reqKey), false);
+  harness.setBiomeUnavailable(false);
+  assert.equal(harness.requirements.ensureChunkRequirement(harness.dimension, 0, 0), "created");
+
+  const broken = makeRequirementHarness({ properties: { [cellKey]: 1, [reqKey]: "{invalid" } });
+  assert.equal(broken.requirements.ensureChunkRequirement(broken.dimension, 0, 0), "deferred");
+  assert.equal(broken.props.get(reqKey), "{invalid");
+  assert.equal(broken.biomeCalls.length, 0);
+});
+
+test("chunk scan initializes at most eight new requirements per interval and backfills later", () => {
+  const properties = {};
+  for (let cx = -1; cx <= 2; cx++) {
+    for (let cz = -1; cz <= 2; cz++) {
+      properties[`chunklock:cell:minecraft:overworld:${cx}:${cz}`] = 1;
+    }
+  }
+  properties["chunklock:open:minecraft:overworld:1:1"] = true;
+  const harness = makeRequirementHarness({ properties });
+  const player = {
+    dimension: harness.dimension,
+    location: { x: 16, y: 64, z: 16 },
+    onScreenDisplay: { setActionBar: () => {} },
+  };
+  harness.players.push(player);
+  const intervals = [];
+  harness.loadChunks({ runInterval: (callback, ticks) => intervals.push({ callback, ticks }) });
+
+  assert.equal(intervals.length, 1);
+  intervals[0].callback();
+  const firstInterval = [...harness.props.keys()].filter((key) => key.startsWith("chunklock:req:")).length;
+  assert.equal(firstInterval, 8);
+  intervals[0].callback();
+  const secondInterval = [...harness.props.keys()].filter((key) => key.startsWith("chunklock:req:")).length;
+  assert.equal(secondInterval, 15, "remaining locked records are backfilled on later intervals");
 });

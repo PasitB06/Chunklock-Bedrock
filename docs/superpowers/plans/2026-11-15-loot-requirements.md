@@ -66,7 +66,7 @@
 - [x] Run `node --test tests/loot.test.cjs`; confirm failures because runtime functions are absent.
 - [x] Implement weighted selection by pool and recursion without flattening, the gravel adapter, ID maps, and the formula.
 - [x] Run `node --test tests/loot.test.cjs`; all focused cases pass.
-- [ ] Commit and push the standalone roller/scaling capability.
+- [x] Commit and push the standalone roller/scaling capability (`7890b56`).
 
 ## Follow-up design approved for the next milestone
 
@@ -85,10 +85,10 @@ The requirement display will become a compact clickable entity on each eligible 
 - Requirement keys use `chunklock:req:<dimensionId>:<cx>:<cz>` and JSON follows the versioned schema in the spec.
 - Difficulty uses `chunklock:difficulty`; per-dimension credited totals use `chunklock:progress:unlocked:<dimensionId>`.
 
-- [ ] Write integration tests for creating requirements on locked neighboring records, skipping the open starting cell, backfilling existing locked records, retrying unavailable biomes, and respecting the per-interval budget.
-- [ ] Run the focused integration test; expect failures before storage/integration exists.
-- [ ] Implement schema validation, fixed biome lookup heights, failure-safe persistence, and bounded requirement initialization from the existing chunk scan.
-- [ ] Run the focused tests; expect requirements to persist without changing access state.
-- [ ] Update Behavior Pack version and project/porting documentation; keep resource dependency 0.2.2.
-- [ ] Run all tests, lint, build, documentation/reference checks, `git diff --check`, and local deployment.
-- [ ] Commit and push the integrated Milestone 1 capability.
+- [x] Write integration tests for creating requirements on locked neighboring records, skipping the open starting cell, backfilling existing locked records, retrying unavailable biomes, and respecting the per-interval budget.
+- [x] Run the focused integration test; confirm failures before storage/integration exists.
+- [x] Implement schema validation, fixed biome lookup heights, failure-safe persistence, and bounded requirement initialization from the existing chunk scan.
+- [x] Run the focused tests; requirements persist without changing access state.
+- [x] Update Behavior Pack version to 0.2.5 and project/porting documentation; keep resource dependency 0.2.2.
+- [x] Run all tests, lint, build, documentation/reference checks, `git diff --check`, and local deployment.
+- [x] Commit and push the integrated Milestone 1 capability.

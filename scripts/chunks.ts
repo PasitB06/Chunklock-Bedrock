@@ -1,4 +1,5 @@
 import { system, world } from "@minecraft/server";
+import { ensureChunkRequirement, requirementPropertyId } from "./requirements.js";
 
 // Prototype counterparts: init_chunk_marker, init_neighbors, tick_chunk_marker.
 const PREFIX = "chunklock:cell:";
@@ -9,7 +10,9 @@ export function startChunks() {
   total = world.getDynamicPropertyIds().filter((id) => id.startsWith(PREFIX)).length;
   system.runInterval(() => {
     let budget = 8;
+    let requirementBudget = 8;
     const processed = new Set<string>();
+    const requirementsProcessed = new Set<string>();
     for (const player of world.getAllPlayers()) {
       const dimension = player.dimension;
       const cx = Math.floor(player.location.x / 16);
@@ -54,6 +57,17 @@ export function startChunks() {
       for (let x = cx - 2; x <= cx + 2; x++) {
         for (let z = cz - 2; z <= cz + 2; z++) {
           if (world.getDynamicProperty(key(x, z)) === undefined) continue;
+          if (Math.abs(x * 16 + 8 - player.location.x) <= 24 && Math.abs(z * 16 + 8 - player.location.z) <= 24) {
+            const requirementId = requirementPropertyId(dimension.id, x, z);
+            if (!requirementsProcessed.has(requirementId)) {
+              const hasRequirement = world.getDynamicProperty(requirementId) !== undefined;
+              if (hasRequirement || requirementBudget > 0) {
+                requirementsProcessed.add(requirementId);
+                const result = ensureChunkRequirement(dimension, x, z);
+                if (!hasRequirement && result !== "skipped") requirementBudget--;
+              }
+            }
+          }
           try {
             dimension.spawnParticle("minecraft:basic_flame_particle", {
               x: x * 16 + 8,

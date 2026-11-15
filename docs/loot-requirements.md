@@ -4,7 +4,7 @@ This document describes Milestone 1 of the Bedrock port: compile the local Java 
 
 ## Implementation status
 
-The source-table compiler ([`tools/build_loot_tables.py`](../tools/build_loot_tables.py)), generated TypeScript data ([`scripts/loot-tables-data.ts`](../scripts/loot-tables-data.ts)), nested weighted roller, biome resolver, item-ID resolver and Java cost formula ([`scripts/loot.ts`](../scripts/loot.ts)) are implemented. The generated module contains all 151 custom tables and is checked against the local reference with `python tools/build_loot_tables.py --check`. Per-chunk persistence and integration with the nearby chunk scan are still pending.
+The source-table compiler ([`tools/build_loot_tables.py`](../tools/build_loot_tables.py)), generated TypeScript data ([`scripts/loot-tables-data.ts`](../scripts/loot-tables-data.ts)), nested weighted roller, biome/item resolvers and Java cost formula ([`scripts/loot.ts`](../scripts/loot.ts)) are implemented. Locked-cell persistence and bounded nearby-scan integration are implemented in [`scripts/requirements.ts`](../scripts/requirements.ts) and [`scripts/chunks.ts`](../scripts/chunks.ts). The generated module contains all 151 custom tables and is checked against the local reference with `python tools/build_loot_tables.py --check`.
 
 ## Java source behavior
 
@@ -44,7 +44,7 @@ The stable Script API version is pinned to 2.6.0. The item resolver uses [`ItemT
 
 ## Parity boundary
 
-The table graph, integer weights, nested selection steps, count ranges, and scaling formulas can be reproduced for the current source. Bedrock biome IDs do not always identify the same regions as Java, and some Java items may not exist in Bedrock. Biome aliases and the explicit item fallback make the system usable, but those cases prevent a claim of identical outcomes for every world and every item.
+The table graph, integer weights, nested selection steps, count ranges, and scaling formulas can be reproduced for the current source. The Java roll function checks `deep_frozen_ocean` twice, replacing its first random result with a second roll; Bedrock resolves that biome to one table and rolls once, as intended by the approved design. Bedrock biome IDs do not always identify the same regions as Java, and some Java items may not exist in Bedrock. Biome aliases and the explicit item fallback make the system usable, but those cases prevent a claim of identical outcomes for every world and every item.
 
 ## Follow-up: requirement displays and direct-hand payment
 
