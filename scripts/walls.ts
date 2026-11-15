@@ -7,7 +7,7 @@ const MAX_WALLS = 128;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
 
-function refreshWalls() {
+export function refreshWalls() {
   const players = world.getAllPlayers();
   const grouped = new Map<string, Player[]>();
   for (const player of players) {

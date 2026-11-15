@@ -131,5 +131,24 @@ nine item-specific entries, one dye entry and one dimension-event bridge.
 Item-specific and dye advancements use `minecraft:impossible` and require explicit grants.
 Total/dimension advancements use `minecraft:location` to test the player's scores.
 
+## Bedrock requirement and payment state
+
+The Bedrock port keeps access, chunk records, requirements and presentation as separate state:
+
+| Owner | Dynamic property | Meaning |
+| --- | --- | --- |
+| World | `chunklock:cell:<dimensionId>:<cx>:<cz>` | Persistent chunk record used for bounded discovery and requirement initialization |
+| World | `chunklock:open:<dimensionId>:<cx>:<cz>` | Authoritative open/locked access flag |
+| World | `chunklock:req:<dimensionId>:<cx>:<cz>` | JSON `ChunkRequirement`, including selected item and remaining cost |
+| World | `chunklock:progress:unlocked:<dimensionId>` | Credited paid unlocks for one dimension, used when rolling later prices |
+| World | `chunklock:progress:unlocked:total` | Credited paid unlock total across dimensions |
+| Player | `chunklock:progress:player:unlocked:<dimensionId>` | Personal paid unlocks for one dimension |
+| Player | `chunklock:progress:player:unlocked:total` | Personal paid unlock total across dimensions |
+| Entity | `chunklock:display_key`, `chunklock:display:cx`, `chunklock:display:cz` | Reconciliation identity and locked-cell target metadata for a temporary requirement display |
+
+The requirement JSON remains authoritative when no player is nearby; display helpers can be removed and rebuilt. A successful payment reads the item ID and count from the clicking player's main-hand equipment, subtracts only `min(stack amount, remaining cost)`, and leaves any excess in that same stack. The barrier shortcut does not consume the barrier. Clicking and payer identity are the same `Player` instance from the before-interaction event, so this path has no dropped-item owner UUID to resolve.
+
+`unlockChunk` returns false if the cell is already open. For a new paid unlock it updates the world and payer totals and then opens the cell; if a progress-property write fails, previously applied counter changes are rolled back. Starting-cell access created by `seedPlayer` does not increment paid progress. Automatic dimension/portal unlocks and Java advancements/announcements are not yet implemented in Bedrock.
+
 Starting-chunk and End exceptions bypass credited unlocking. Portal auto-unlocks passing through `unlock_current_chunk` increment global totals.
 Global announcement milestones and personal advancement thresholds must remain separate in the port.

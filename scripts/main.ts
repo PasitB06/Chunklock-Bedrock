@@ -6,12 +6,14 @@ import { startProjectiles } from "./projectiles.js";
 import { startWallDiagnostics } from "./wall-diagnostics.js";
 import { startCollision } from "./collision.js";
 import { startRequirementDisplays } from "./displays.js";
+import { startPayments } from "./payment.js";
 
 startProtection();
 system.run(() => {
   startWallDiagnostics();
   startWalls();
   startRequirementDisplays();
+  startPayments();
   startCollision();
   startChunks();
   startProjectiles();

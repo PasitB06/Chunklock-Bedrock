@@ -36,6 +36,29 @@ export function getChunkRequirement(dimensionId: string, cx: number, cz: number)
   }
 }
 
+export function setChunkRequirementRemainingCost(
+  dimensionId: string,
+  cx: number,
+  cz: number,
+  remainingCost: number
+): boolean {
+  if (!Number.isSafeInteger(remainingCost) || remainingCost < 0) return false;
+  const requirement = getChunkRequirement(dimensionId, cx, cz);
+  if (!requirement) return false;
+  world.setDynamicProperty(
+    requirementPropertyId(dimensionId, cx, cz),
+    JSON.stringify({ ...requirement, remainingCost })
+  );
+  return true;
+}
+
+export function deleteChunkRequirement(dimensionId: string, cx: number, cz: number): boolean {
+  const propertyId = requirementPropertyId(dimensionId, cx, cz);
+  if (world.getDynamicProperty(propertyId) === undefined) return false;
+  world.setDynamicProperty(propertyId, undefined);
+  return true;
+}
+
 export function formatItemDisplayName(itemId: string): string {
   const itemName = itemId.slice(itemId.lastIndexOf(":") + 1);
   return itemName

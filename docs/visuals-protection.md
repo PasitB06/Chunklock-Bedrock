@@ -34,7 +34,7 @@ Helpers have no gravity, physical collision, AI or damage response. Existing loa
 
 `displays.ts` reuses `wallEdges` so each requirement icon aligns to the exact boundary between an open cell and a locked cell. It only creates a display when the locked cell has a saved requirement and the nearest player is within 24 horizontal blocks. The helper is placed 0.3 blocks into the open cell at the edge midpoint, follows the nearest player's head height, and is keyed by the locked chunk coordinates. Its 0.8 by 0.9 hitbox is limited to the center point, leaving the rest of the border clear for combat with mobs that protrude through it. Its main-hand attachable shows the required item, and its name tag shows the item name and remaining quantity.
 
-The display has no gravity or physical collision, is immune to damage, and is reconciled every ten ticks with a four-entity spawn budget. At most 128 display helpers are retained. It is a presentation/input helper; persistent chunk requirement data remains authoritative. The next payment step handles right-clicks on this helper, cancels the ordinary item action, and uses the clicking player's main hand.
+The display has no gravity or physical collision, is immune to damage, and is reconciled every ten ticks with a four-entity spawn budget. At most 128 display helpers are retained. It is a presentation/input helper; persistent chunk requirement data remains authoritative. Right-clicks are canceled before the normal item action and processed after the restricted event callback. Payment reads only the clicking player's main hand, preserving excess items and leaving the visible requirement unchanged for wrong items. These changes are statically tested; their rendering and interaction behavior remain to be checked in Minecraft.
 
 ## Protection and projectile limits
 
@@ -54,7 +54,9 @@ Stationary projectiles are retired from tracking after five idle ticks. If the t
 4. Fly away and return; leave/rejoin the world. Check no duplicate walls and no additional access granted by movement/rejoin. Test different player heights and dimensions.
 5. Walk, jump and fly across each border into a locked cell. The player should return to the previous tick's safe position. Repeat for diagonal corners, negative coordinates, after respawn, after a dimension change and after world rejoin. Spectator mode is exempt.
 6. Shoot slow/fast and close-range projectiles toward locked terrain. Record any same-tick impacts; perfect projectile prevention has not been established.
-7. Inspect Settings -> Creator -> Content Log if an entity/texture is missing or Minecraft reports a pack-loading error. The previous generic pack-loading warning remains unclassified until actual logs identify its source.
+7. At a locked border, check that the requirement icon and item/count label stay centered on the wall and move with player height. Right-click with an empty hand for the requirement message, then with a wrong item to confirm it is preserved. Pay with the correct item and confirm partial cost changes, excess stays in the same main-hand stack, and the final payment removes the inner border. A held barrier should unlock without being consumed. Correct items are consumed even in Creative mode.
+8. Leave and return to the border, then leave and rejoin the world. Confirm requirements and unlock state persist and that helpers do not duplicate.
+9. Inspect Settings -> Creator -> Content Log if an entity/texture is missing or Minecraft reports a pack-loading error. The previous generic pack-loading warning remains unclassified until actual logs identify its source.
 
 Automated tests exercise geometry planning, negative coordinates, deduplication, access persistence, callback cancellation and projectile path traversal using a simulated Minecraft API. Build/package validation does not establish visual quality, material compatibility or game performance.
 

@@ -47,7 +47,7 @@ The function tag independently schedules `pre_tick -> tick -> post_tick` in that
 The static index resolves 626 internal resource references, including direct calls, clickable commands,
 nested loot tables and advancement parents/rewards. Every extracted target exists in the local snapshot.
 This does not prove that every branch executes successfully, establish Java version compatibility or constitute gameplay testing.
-Bedrock now has experimental chunk records, translucent wall helpers and block/right-click protection; see [current behavior](../visuals-protection.md). Runtime visual quality and projectile prevention still require in-game testing.
+Bedrock now has experimental chunk records, translucent wall helpers, block/right-click protection, loot-derived requirement displays and direct main-hand payment/unlock progress; see [current behavior](../visuals-protection.md) and [the connected requirement flow](../loot-requirements.md). Display visibility, click targeting and payment still require in-game testing. Projectile removal also remains best effort.
 
 When comments or UI disagree with executable commands, document both. Describe the commands as reference behavior
 and identify any deliberate changes made for Bedrock. The local Java snapshot credits AvidMc and Quillbee.
