@@ -5,10 +5,7 @@ Read [runtime-flow](runtime-flow.md), [state-model](state-model.md) and the rele
 
 ## Current status
 
-[scripts/main.ts](../../scripts/main.ts) only subscribes to `playerSpawn` and sends
-`[Chunklock] Bedrock add-on is ready.` on initial spawn.
-TypeScript building, local deployment, .mcaddon packaging and editor/debug configuration are prepared.
-Chunk state, locking, payments, pricing, progression and Chunklock presentation are not implemented in Bedrock yet.
+The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. No helper entities are spawned. Runtime behavior and performance await user testing. Locking, payment and progression remain unimplemented.
 
 ## Responsibility map
 
@@ -16,8 +13,8 @@ Chunk state, locking, payments, pricing, progression and Chunklock presentation 
 | --- | --- | --- | --- |
 | Initialization/scheduling | load, pre_tick, tick, post_tick | Idempotent setup and suitable every-tick/four-tick work separation | Not implemented |
 | Joining players | init_player, pre_tick_player | Initialize each player and find/create their starting chunk in the correct dimension | Readiness message only; no Chunklock initialization |
-| Chunk identity | chunk_init/*, find_chunk_coords/center | Key by dimension + floor(X/16) + floor(Z/16), without duplicate records | Not implemented |
-| Neighbor expansion | init_neighbors and directional helpers | Expand only relevant available terrain, track directions and prevent unbounded expansion | Not implemented |
+| Chunk identity | chunk_init/*, find_chunk_coords/center | Dimension-aware persistent records with floor-based centers | Experimental prototype; manual verification pending |
+| Neighbor expansion | init_neighbors and directional helpers | Bounded player-nearby cardinal propagation with loaded-center checks | Experimental prototype; manual verification pending |
 | Weighted selection | roll_chunk_unlock_item, loot_table/* | Preserve nested weights/count evaluation and map supported item/biome identifiers | Not implemented |
 | Price scaling | init_locked_chunk_unlock_item | Separate dimension counters and roll-time costs; preserve or explicitly revise the four difficulty formulas | Not implemented |
 | Movement/mining protection | collision/*, interaction helpers | Player-specific safe positions and dimension-correct permission checks, separate from visuals | Not implemented |
