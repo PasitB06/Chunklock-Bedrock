@@ -1,0 +1,15 @@
+node_modules/
+dist/
+lib/
+temp/
+__pycache__/
+*.pyc
+*.log
+.env.local
+.DS_Store
+.codex-attachments/
+*.bundle
+
+# Java reference material must remain outside this repository.
+java_mod/
+**/java_mod/
