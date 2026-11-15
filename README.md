@@ -2,7 +2,7 @@
 
 A TypeScript project for Minecraft Bedrock, using the behavior of a local Java Chunklock datapack as a development reference.
 
-**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See [prototype instructions](docs/chunk-prototype.md). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are now available for testing; see [visuals and protection](docs/visuals-protection.md). All Java loot tables compile and roll in Bedrock TypeScript; locked chunks now persist their biome-based requirements and source-scaled costs, with Minecraft gameplay verification pending. Display, payment and progression remain in progress.
+**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See [prototype instructions](docs/chunk-prototype.md). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are implemented; see [visuals and protection](docs/visuals-protection.md). All Java loot tables compile and roll in Bedrock TypeScript, and locked chunks persist biome-based requirements and source-scaled costs. Nearby requirement icons and counts are now rendered on eligible locked borders. Display visibility and click targeting need Minecraft gameplay verification; direct-hand payment and unlock progression are in progress.
 
 This directory is the Git repository root. The Java reference is kept outside the repository at `../java_mod/data` and is not published to GitHub.
 
@@ -13,7 +13,7 @@ This directory is the Git repository root. The Java reference is kept outside th
 | [Reference guide](docs/reference/README.md) | Explains the Java system and how its parts connect |
 | [Domain glossary](CONTEXT.md) | Defines chunks, unlock requirements, payers and progress |
 | [Bedrock mapping](docs/reference/bedrock-porting.md) | Maps responsibilities to future Bedrock work and records implementation status |
-| [Loot requirements](docs/loot-requirements.md) | Describes the Java table compiler and planned per-chunk requirement flow |
+| [Loot requirements](docs/loot-requirements.md) | Explains loot compilation, per-chunk requirements, border displays, and direct-hand payment |
 | [Agent rules](AGENTS.md) | Requires English-only writing, reference-based development and a commit/push for each completed capability |
 
 All repository documentation, comments, authored messages and commit messages must be written in English.

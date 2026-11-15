@@ -234,6 +234,40 @@ test("roller rejects invalid random values and cyclic table references", () => {
   assert.throws(() => loot.rollLootTable("chunklock:biome/loop", () => 1), /random source/);
 });
 
+test("getChunkRequirement returns only validated saved requirements", () => {
+  const requirement = {
+    schemaVersion: 1,
+    state: "locked",
+    biomeId: "minecraft:plains",
+    tableId: "chunklock:biome/plains",
+    sourceItemId: "minecraft:oak_log",
+    itemId: "minecraft:oak_log",
+    baseCount: 2,
+    remainingCost: 16,
+    difficulty: 2,
+  };
+  const harness = makeRequirementHarness({
+    properties: {
+      "chunklock:req:minecraft:overworld:-2:3": JSON.stringify(requirement),
+      "chunklock:req:minecraft:overworld:4:5": "{broken",
+    },
+  });
+
+  assert.deepEqual(
+    plain(harness.requirements.getChunkRequirement("minecraft:overworld", -2, 3)),
+    requirement
+  );
+  assert.equal(harness.requirements.getChunkRequirement("minecraft:overworld", 4, 5), undefined);
+  assert.equal(harness.requirements.getChunkRequirement("minecraft:overworld", 8, 9), undefined);
+});
+
+test("formatItemDisplayName converts namespaced snake case into readable words", () => {
+  const harness = makeRequirementHarness();
+
+  assert.equal(harness.requirements.formatItemDisplayName("minecraft:oak_log"), "Oak Log");
+  assert.equal(harness.requirements.formatItemDisplayName("custom:ancient_debris"), "Ancient Debris");
+});
+
 test("locked cells persist one biome-aware requirement and leave open access state unchanged", () => {
   const cellKey = "chunklock:cell:minecraft:overworld:0:0";
   const reqKey = "chunklock:req:minecraft:overworld:0:0";

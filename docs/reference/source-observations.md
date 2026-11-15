@@ -19,6 +19,9 @@ Source locators are under the external `java_mod/data/chunklock` directory.
 
 ## Cases requiring runtime verification
 
+- **Bedrock requirement-display adaptation:** Java creates `item_display` and `text_display` entities, plus interaction helpers, in `chunk_items/render_chunk_items` and side-specific check functions. The Bedrock port uses one custom `chunklock:requirement_display` entity with a held item, a name tag and a compact click target. This avoids Java-only display entity types and passengers; verify attachable rendering and hitbox targeting in Minecraft.
+- **Bedrock payment adaptation:** Java submits dropped item entities and attributes ownership through the `Thrower` UUID. The Bedrock plan instead uses the stable player/entity interaction event to identify the clicking player and consume the required item from their main-hand stack. This is a deliberate input and ownership change; do not port Java's dropped-item return behavior into this click path.
+
 - **Dimensions:** tick root does not explicitly iterate dimensions for every selector group. Test marker, proximity,
   interaction and cleanup behavior in Nether and End; a few `if dimension` branches do not prove complete coverage.
 - **Multiple players:** `dimension/on_change_dimension` tags `@p` but revokes the advancement from `@s`.

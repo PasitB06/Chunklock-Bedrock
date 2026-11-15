@@ -4,6 +4,12 @@ Function names below refer to the external Java directory `java_mod/data/chunklo
 [functions.md](functions.md) lists every source locator, caller, callee and extracted source line.
 Ticks in this guide are game ticks, not rendering frames.
 
+## Bedrock implementation snapshot
+
+The Bedrock add-on is a separate implementation, not a datapack loader. `scripts/main.ts` starts the protection hooks, then starts diagnostics, walls, requirement displays, movement collision, bounded chunk expansion/requirement initialization and projectile tracking. Wall and requirement-display reconciliation runs every ten ticks; collision and projectile movement checks use their own per-tick intervals. Chunk records, open-cell access and per-chunk requirement JSON are stored separately as world dynamic properties.
+
+`chunks.ts` seeds the player's current open cell once per dimension, discovers only a bounded neighborhood while players are nearby, and assigns loot-derived requirements to locked records. `walls.ts` and `displays.ts` derive temporary helpers from the shared `wallEdges` geometry. Requirement displays appear only where an open cell borders a locked cell with a saved cost, and only while a player is nearby. The display shows the saved item and remaining cost. Current code has not yet connected display clicks to payment or unlocking; those remain the next milestone.
+
 ## 1. Datapack loading
 
 `java_mod/data/minecraft/tags/function/load.json` invokes `chunklock:load`.

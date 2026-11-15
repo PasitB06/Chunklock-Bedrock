@@ -25,6 +25,26 @@ export type EnsureRequirementResult = "created" | "existing" | "skipped" | "defe
 export const requirementPropertyId = (dimensionId: string, cx: number, cz: number) =>
   `${REQUIREMENT_PREFIX}${dimensionId}:${cx}:${cz}`;
 
+export function getChunkRequirement(dimensionId: string, cx: number, cz: number): ChunkRequirement | undefined {
+  const stored = world.getDynamicProperty(requirementPropertyId(dimensionId, cx, cz));
+  if (typeof stored !== "string") return undefined;
+  try {
+    const value: unknown = JSON.parse(stored);
+    return isValidRequirement(value) ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function formatItemDisplayName(itemId: string): string {
+  const itemName = itemId.slice(itemId.lastIndexOf(":") + 1);
+  return itemName
+    .split(/[_\s]+/)
+    .filter((word) => word.length > 0)
+    .map((word) => word[0].toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 function cellPropertyId(dimensionId: string, cx: number, cz: number) {
   return `${CELL_PREFIX}${dimensionId}:${cx}:${cz}`;
 }

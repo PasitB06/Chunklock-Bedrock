@@ -1,0 +1,22 @@
+{
+  "format_version": "1.10.0",
+  "minecraft:client_entity": {
+    "description": {
+      "identifier": "chunklock:requirement_display",
+      "materials": {
+        "default": "entity"
+      },
+      "textures": {
+        "default": "textures/entity/border_wall"
+      },
+      "geometry": {
+        "default": "geometry.chunklock.requirement_display"
+      },
+      "render_controllers": [
+        "controller.render.chunklock.requirement_display"
+      ],
+      "enable_attachables": true,
+      "held_item_ignores_lighting": true
+    }
+  }
+}

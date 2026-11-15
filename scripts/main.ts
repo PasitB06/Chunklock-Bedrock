@@ -5,11 +5,13 @@ import { startWalls } from "./walls.js";
 import { startProjectiles } from "./projectiles.js";
 import { startWallDiagnostics } from "./wall-diagnostics.js";
 import { startCollision } from "./collision.js";
+import { startRequirementDisplays } from "./displays.js";
 
 startProtection();
 system.run(() => {
   startWallDiagnostics();
   startWalls();
+  startRequirementDisplays();
   startCollision();
   startChunks();
   startProjectiles();

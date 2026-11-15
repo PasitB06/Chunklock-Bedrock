@@ -45,6 +45,31 @@ test("negative coordinates use floor and adjacent open cells have no internal wa
   assert.ok(!edges.some((e) => e.axis === "z" && e.x === 16 && e.z === 8));
 });
 
+test("wall edges report open and locked cells on all sides of a negative chunk", () => {
+  const edges = load("regions").wallEdges([{ x: -2, z: -1 }], () => false);
+  const bySide = new Map(edges.map((edge) => [edge.side, edge]));
+
+  assert.equal(edges.length, 4);
+  for (const side of ["north", "east", "south", "west"]) {
+    const edge = bySide.get(side);
+    assert.ok(edge, `${side} edge exists`);
+    assert.equal(edge.openCell.x, -2);
+    assert.equal(edge.openCell.z, -1);
+  }
+  assert.deepEqual(
+    ["north", "east", "south", "west"].map((side) => {
+      const edge = bySide.get(side);
+      return [side, edge.lockedCell.x, edge.lockedCell.z, edge.x, edge.z];
+    }),
+    [
+      ["north", -2, -2, -24, -16],
+      ["east", -1, -1, -16, -8],
+      ["south", -2, 0, -24, 0],
+      ["west", -3, -1, -32, -8],
+    ]
+  );
+});
+
 test("projectile sweep detects a locked intermediate chunk even if destination is open", () => {
   const r = load("regions");
   const locked = (x, z) => x === 1 && z === 0;
@@ -149,6 +174,17 @@ test("protection cancels locked targets and placement across a border, but permi
   const mob = { player, target: { dimension: player.dimension, location: { x: 20, z: 8 } }, cancel: false };
   callbacks.playerInteractWithEntity(mob);
   assert.equal(mob.cancel, true);
+  const requirementDisplay = {
+    player,
+    target: {
+      typeId: "chunklock:requirement_display",
+      dimension: player.dimension,
+      location: { x: 17, y: 64, z: 8 },
+    },
+    cancel: false,
+  };
+  callbacks.playerInteractWithEntity(requirementDisplay);
+  assert.equal(requirementDisplay.cancel, false, "payment clicks must reach the requirement display handler");
   let impacted;
   callbacks.explosion({
     getImpactedBlocks: () => [block(8), block(16)],
@@ -256,18 +292,20 @@ test("combat guard cancels melee and same-tick projectile damage in locked cells
   };
   callbacks.entityHurt(fall);
   assert.equal(fall.cancel, false, "environmental damage must remain unchanged");
-  for (const cause of ["fall", "suffocation", "void", "entityAttack"]) {
-    const wall = {
+  for (const typeId of ["chunklock:border_wall", "chunklock:requirement_display"]) {
+    for (const cause of ["fall", "suffocation", "void", "entityAttack"]) {
+      const helper = {
       hurtEntity: {
-        typeId: "chunklock:border_wall",
+        typeId,
         dimension: { id: "minecraft:overworld" },
         location: { x: 8, z: 8 },
       },
       damageSource: { cause },
       cancel: false,
-    };
-    callbacks.entityHurt(wall);
-    assert.equal(wall.cancel, true, `display helpers must survive ${cause} even on the open side`);
+      };
+      callbacks.entityHurt(helper);
+      assert.equal(helper.cancel, true, `${typeId} must survive ${cause} even on the open side`);
+    }
   }
 });
 

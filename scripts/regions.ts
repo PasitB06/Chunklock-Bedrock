@@ -3,26 +3,39 @@ export interface Cell {
   x: number;
   z: number;
 }
+export type CardinalSide = "north" | "east" | "south" | "west";
 export interface WallEdge extends Cell {
   key: string;
   axis: "x" | "z";
+  openCell: Cell;
+  lockedCell: Cell;
+  side: CardinalSide;
 }
+const DIRECTIONS: readonly [number, number, CardinalSide][] = [
+  [0, -1, "north"],
+  [1, 0, "east"],
+  [0, 1, "south"],
+  [-1, 0, "west"],
+];
 
 export function wallEdges(cells: Cell[], isOpen: (x: number, z: number) => boolean): WallEdge[] {
   const edges = new Map<string, WallEdge>();
   for (const { x, z } of cells) {
-    for (const [dx, dz] of [
-      [0, -1],
-      [1, 0],
-      [0, 1],
-      [-1, 0],
-    ]) {
+    for (const [dx, dz, side] of DIRECTIONS) {
       if (isOpen(x + dx, z + dz)) continue;
       const axis = dx === 0 ? "x" : "z";
       const px = dx === 0 ? x * 16 + 8 : (x + (dx > 0 ? 1 : 0)) * 16;
       const pz = dz === 0 ? z * 16 + 8 : (z + (dz > 0 ? 1 : 0)) * 16;
       const key = `${axis}:${px}:${pz}`;
-      edges.set(key, { key, axis, x: px, z: pz });
+      edges.set(key, {
+        key,
+        axis,
+        x: px,
+        z: pz,
+        openCell: { x, z },
+        lockedCell: { x: x + dx, z: z + dz },
+        side: side as CardinalSide,
+      });
     }
   }
   return [...edges.values()];

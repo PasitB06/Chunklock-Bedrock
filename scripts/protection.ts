@@ -47,7 +47,7 @@ export function startProtection() {
   world.beforeEvents.entityHurt.subscribe((event) => {
     const target = event.hurtEntity;
     // Visual helpers can be anchored inside solid terrain. They are never mobs.
-    if (target.typeId === "chunklock:border_wall") {
+    if (target.typeId === "chunklock:border_wall" || target.typeId === "chunklock:requirement_display") {
       event.cancel = true;
       return;
     }
@@ -85,6 +85,7 @@ export function startProtection() {
     }
   });
   world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
+    if (event.target.typeId === "chunklock:requirement_display") return;
     const { x, z } = event.target.location;
     if (isLocked(event.target.dimension.id, x, z)) {
       event.cancel = true;

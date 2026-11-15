@@ -30,6 +30,12 @@ This subsystem is new Bedrock script behavior connected to the existing dimensio
 
 Helpers have no gravity, physical collision, AI or damage response. Existing loaded helpers are adopted by a persistent wall key after reload. Duplicates and loaded helpers no longer wanted are removed. Unloaded helpers are reconciled when they load again. No ticking areas or forced chunk loads are created. These limits bound the implementation; they are not performance benchmark results or a global count of unloaded entities saved on disk.
 
+## Requirement displays
+
+`displays.ts` reuses `wallEdges` so each requirement icon aligns to the exact boundary between an open cell and a locked cell. It only creates a display when the locked cell has a saved requirement and the nearest player is within 24 horizontal blocks. The helper is placed 0.3 blocks into the open cell at the edge midpoint, follows the nearest player's head height, and is keyed by the locked chunk coordinates. Its 0.8 by 0.9 hitbox is limited to the center point, leaving the rest of the border clear for combat with mobs that protrude through it. Its main-hand attachable shows the required item, and its name tag shows the item name and remaining quantity.
+
+The display has no gravity or physical collision, is immune to damage, and is reconciled every ten ticks with a four-entity spawn budget. At most 128 display helpers are retained. It is a presentation/input helper; persistent chunk requirement data remains authoritative. The next payment step handles right-clicks on this helper, cancels the ordinary item action, and uses the clicking player's main hand.
+
 ## Protection and projectile limits
 
 `protection.ts` cancels the stable API 2.6 before-events for breaking locked blocks and right-clicking locked blocks/entities. Version 0.2.1 also cancels attack damage to locked targets through the stable pre-damage event. Item interactions on an open border block are also denied when the neighboring placement cell is locked. This is deliberately conservative: some non-placement items used on an open border face are denied too. Feedback is deferred out of the restricted callback and rate-limited. Explosion block lists exclude locked blocks.
