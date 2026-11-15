@@ -70,7 +70,7 @@
 
 ## Follow-up design approved for the next milestone
 
-The requirement display will become a compact clickable entity on each eligible locked-chunk border. Payment will use the clicking player's held main-hand item through `playerInteractWithEntity`, with scheduled inventory changes, a five-tick debounce, partial payment and direct player credit. A barrier remains a non-consuming test shortcut. Do not implement item-drop payment.
+The requirement display will become a compact clickable entity on each eligible locked-chunk border. Payment will use `playerInteractWithEntity` to identify the payer, check for a non-consuming barrier in the selected slot, then scan and deduct matching items from the selected slot, every remaining player-inventory slot and offhand. Schedule mutations after the before-event, apply a five-tick debounce, preserve excess items in their original slots, and credit the player who clicked. Do not implement item-drop payment.
 
 ### Task 3: Persist locked-chunk requirements
 

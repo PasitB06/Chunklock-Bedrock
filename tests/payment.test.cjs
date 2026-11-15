@@ -41,6 +41,23 @@ class TestItemStack {
   }
 }
 
+class TestContainer {
+  constructor(items = [], onWrite = () => {}) {
+    this.size = 36;
+    this.items = Array.from({ length: this.size }, (_, slot) => items[slot]?.clone());
+    this.onWrite = onWrite;
+  }
+
+  getItem(slot) {
+    return this.items[slot]?.clone();
+  }
+
+  setItem(slot, stack) {
+    this.onWrite(slot, stack);
+    this.items[slot] = stack?.clone();
+  }
+}
+
 function makeRequirement(remainingCost = 10) {
   return {
     schemaVersion: 1,
@@ -55,7 +72,7 @@ function makeRequirement(remainingCost = 10) {
   };
 }
 
-function makeHarness({ remainingCost = 10, mainhand, players } = {}) {
+function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = {}) {
   const props = new Map([
     ["chunklock:cell:minecraft:overworld:1:0", 1],
     ["chunklock:req:minecraft:overworld:1:0", JSON.stringify(makeRequirement(remainingCost))],
@@ -64,42 +81,67 @@ function makeHarness({ remainingCost = 10, mainhand, players } = {}) {
   const scheduled = [];
   const sounds = [];
   const particles = [];
-  let rejectEquipmentWrite = false;
+  let rejectContainerWriteAt = 0;
+  let containerWrites = 0;
   const dimension = {
     id: "minecraft:overworld",
     playSound: (id, location, options) => sounds.push({ id, location, options }),
     spawnParticle: (id, location) => particles.push({ id, location }),
   };
-  const makePlayer = (id, held) => {
+  const makePlayer = (id, items = [], heldOffhand) => {
+    const container = new TestContainer(items, (slot) => {
+      containerWrites++;
+      if (containerWrites === rejectContainerWriteAt) throw new Error("inventory write failed");
+    });
+    let offhandStack = heldOffhand?.clone();
     const player = {
       id,
       dimension,
-      mainhand: held,
+      selectedSlotIndex: 0,
       actions: [],
       messages: [],
+      get mainhand() {
+        return container.getItem(player.selectedSlotIndex);
+      },
+      set mainhand(value) {
+        container.setItem(player.selectedSlotIndex, value);
+      },
+      get offhand() {
+        return offhandStack?.clone();
+      },
+      get inventory() {
+        return container;
+      },
       getDynamicProperty: (key) => player.props.get(key),
       setDynamicProperty: (key, value) => {
         if (value === undefined) player.props.delete(key);
         else player.props.set(key, value);
       },
-      getComponent: (componentId) =>
-        componentId === "minecraft:equippable"
-          ? {
-              getEquipment: (slot) => (slot === "Mainhand" ? player.mainhand : undefined),
-              setEquipment: (slot, value) => {
-                if (rejectEquipmentWrite) return false;
-                if (slot === "Mainhand") player.mainhand = value;
-                return true;
-              },
-            }
-          : undefined,
+      getComponent: (componentId) => {
+        if (componentId === "minecraft:inventory") return { container };
+        if (componentId === "minecraft:equippable") {
+          return {
+            getEquipment: (slot) => {
+              if (slot === "Mainhand") return container.getItem(player.selectedSlotIndex);
+              if (slot === "Offhand") return offhandStack?.clone();
+              return undefined;
+            },
+            setEquipment: (slot, value) => {
+              if (slot === "Mainhand") container.setItem(player.selectedSlotIndex, value);
+              else if (slot === "Offhand") offhandStack = value?.clone();
+              return true;
+            },
+          };
+        }
+        return undefined;
+      },
       onScreenDisplay: { setActionBar: (text) => player.actions.push(text) },
       sendMessage: (text) => player.messages.push(text),
     };
     player.props = new Map();
     return player;
   };
-  const activePlayers = players ?? [makePlayer("player-1", mainhand)];
+  const activePlayers = players ?? [makePlayer("player-1", inventory, offhand)];
   const world = {
     beforeEvents: {
       playerInteractWithEntity: {
@@ -128,7 +170,7 @@ function makeHarness({ remainingCost = 10, mainhand, players } = {}) {
     run: (callback) => scheduled.push(callback),
   };
   const api = {
-    EquipmentSlot: { Mainhand: "Mainhand" },
+    EquipmentSlot: { Mainhand: "Mainhand", Offhand: "Offhand" },
     GameMode: { Creative: "Creative" },
     ItemStack: TestItemStack,
     system,
@@ -175,7 +217,7 @@ function makeHarness({ remainingCost = 10, mainhand, players } = {}) {
     payment,
     props,
     requirements,
-    setRejectEquipmentWrite: (value) => (rejectEquipmentWrite = value),
+    setRejectContainerWriteAt: (writeNumber) => (rejectContainerWriteAt = writeNumber),
     sounds,
     system,
     target,
@@ -188,7 +230,11 @@ function savedRequirement(harness) {
   return harness.requirements.getChunkRequirement("minecraft:overworld", 1, 0);
 }
 
-test("empty and incorrect main-hand items are retained and report the requirement", () => {
+function itemAt(player, slot) {
+  return player.inventory.getItem(slot);
+}
+
+test("empty and incorrect inventory items are retained and report the requirement", () => {
   const harness = makeHarness();
   const player = harness.activePlayers[0];
   harness.payment.startPayments();
@@ -199,23 +245,29 @@ test("empty and incorrect main-hand items are retained and report the requiremen
   assert.equal(savedRequirement(harness).remainingCost, 10);
 
   harness.system.currentTick += 5;
-  player.mainhand = new TestItemStack("minecraft:dirt", 4);
+  player.inventory.setItem(3, new TestItemStack("minecraft:dirt", 4));
   harness.click();
   harness.flush();
-  assert.equal(player.mainhand.typeId, "minecraft:dirt");
-  assert.equal(player.mainhand.amount, 4);
+  assert.equal(itemAt(player, 3).typeId, "minecraft:dirt");
+  assert.equal(itemAt(player, 3).amount, 4);
   assert.match(player.actions.at(-1), /requires Oak Log/);
   assert.equal(harness.sounds.at(-1).id, "note.didgeridoo");
+  assert.equal(harness.particles.at(-1).id, "minecraft:basic_smoke_particle");
 });
 
-test("a main-hand stack larger than the remaining cost leaves its excess in hand", () => {
-  const harness = makeHarness({ remainingCost: 5, mainhand: new TestItemStack("minecraft:oak_log", 8) });
+test("one click pays across multiple inventory stacks with excess left in the last stack", () => {
+  const inventory = [];
+  inventory[0] = new TestItemStack("minecraft:oak_log", 64);
+  inventory[1] = new TestItemStack("minecraft:oak_log", 64);
+  inventory[2] = new TestItemStack("minecraft:oak_log", 16);
+  const harness = makeHarness({ remainingCost: 130, inventory });
   harness.payment.startPayments();
   harness.click();
   harness.flush();
 
-  assert.equal(harness.activePlayers[0].mainhand.amount, 3);
-  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:1:0"), false);
+  assert.equal(itemAt(harness.activePlayers[0], 0), undefined);
+  assert.equal(itemAt(harness.activePlayers[0], 1), undefined);
+  assert.equal(itemAt(harness.activePlayers[0], 2).amount, 14);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), true);
   assert.equal(harness.props.get("chunklock:progress:unlocked:minecraft:overworld"), 1);
   assert.equal(harness.props.get("chunklock:progress:unlocked:total"), 1);
@@ -225,48 +277,83 @@ test("a main-hand stack larger than the remaining cost leaves its excess in hand
   assert.equal(harness.displayRefreshes(), 1);
 });
 
-test("an exact main-hand payment consumes the stack and opens the chunk", () => {
-  const harness = makeHarness({ remainingCost: 6, mainhand: new TestItemStack("minecraft:oak_log", 6) });
+test("selected slot is consumed before earlier numbered slots", () => {
+  const inventory = [];
+  inventory[0] = new TestItemStack("minecraft:oak_log", 20);
+  inventory[1] = new TestItemStack("minecraft:oak_log", 5);
+  const harness = makeHarness({ remainingCost: 5, inventory });
+  const player = harness.activePlayers[0];
+  player.selectedSlotIndex = 1;
   harness.payment.startPayments();
   harness.click();
   harness.flush();
 
-  assert.equal(harness.activePlayers[0].mainhand, undefined);
+  assert.equal(itemAt(player, 1), undefined);
+  assert.equal(itemAt(player, 0).amount, 20);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), true);
-  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:1:0"), false);
 });
 
-test("partial payment consumes only the required amount and updates the saved cost", () => {
-  const harness = makeHarness({ remainingCost: 8, mainhand: new TestItemStack("minecraft:oak_log", 3) });
+test("partial payment consumes matching items across inventory slots", () => {
+  const inventory = [];
+  inventory[0] = new TestItemStack("minecraft:oak_log", 32);
+  inventory[5] = new TestItemStack("minecraft:oak_log", 40);
+  const harness = makeHarness({ remainingCost: 100, inventory });
   harness.payment.startPayments();
   harness.click();
   harness.flush();
 
-  assert.equal(harness.activePlayers[0].mainhand, undefined);
-  assert.equal(savedRequirement(harness).remainingCost, 5);
+  assert.equal(itemAt(harness.activePlayers[0], 0), undefined);
+  assert.equal(itemAt(harness.activePlayers[0], 5), undefined);
+  assert.equal(savedRequirement(harness).remainingCost, 28);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), false);
   assert.equal(harness.props.has("chunklock:progress:unlocked:total"), false);
-  assert.equal(harness.displayRefreshes(), 1);
-  assert.equal(harness.sounds.at(-1).id, "block.end_portal_frame.fill");
-  assert.equal(harness.particles.at(-1).id, "minecraft:totem_particle");
+  assert.match(harness.activePlayers[0].actions.at(-1), /Paid 72 Oak Log\. 28 remaining/);
 });
 
-test("a held barrier unlocks without being consumed", () => {
-  const barrier = new TestItemStack("minecraft:barrier", 1);
-  const harness = makeHarness({ mainhand: barrier });
+test("payment scans and deducts from offhand when the main inventory is empty", () => {
+  const harness = makeHarness({ remainingCost: 3, offhand: new TestItemStack("minecraft:oak_log", 7) });
   harness.payment.startPayments();
   harness.click();
   harness.flush();
 
-  assert.equal(harness.activePlayers[0].mainhand, barrier);
+  assert.equal(harness.activePlayers[0].offhand.amount, 4);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), true);
   assert.equal(harness.props.has("chunklock:req:minecraft:overworld:1:0"), false);
 });
 
-test("click processing is debounced and concurrent clicks unlock and credit only once", () => {
-  const harness = makeHarness({ mainhand: new TestItemStack("minecraft:oak_log", 10) });
+test("a barrier in the selected hand unlocks without being consumed", () => {
+  const inventory = [];
+  inventory[0] = new TestItemStack("minecraft:barrier", 1);
+  const harness = makeHarness({ inventory });
+  harness.payment.startPayments();
+  harness.click();
+  harness.flush();
+
+  assert.equal(itemAt(harness.activePlayers[0], 0).typeId, "minecraft:barrier");
+  assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), true);
+  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:1:0"), false);
+});
+
+test("an inventory write failure rolls back every changed stack and the requirement", () => {
+  const inventory = [];
+  inventory[0] = new TestItemStack("minecraft:oak_log", 10);
+  inventory[1] = new TestItemStack("minecraft:oak_log", 10);
+  const harness = makeHarness({ remainingCost: 15, inventory });
+  harness.setRejectContainerWriteAt(2);
+  harness.payment.startPayments();
+  harness.click();
+  harness.flush();
+
+  assert.equal(itemAt(harness.activePlayers[0], 0).amount, 10);
+  assert.equal(itemAt(harness.activePlayers[0], 1).amount, 10);
+  assert.equal(savedRequirement(harness).remainingCost, 15);
+  assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), false);
+});
+
+test("click processing is debounced and concurrent players can only unlock and credit once", () => {
+  const harness = makeHarness({ inventory: [new TestItemStack("minecraft:oak_log", 10)] });
   const first = harness.activePlayers[0];
-  const second = harness.makePlayer("player-2", new TestItemStack("minecraft:oak_log", 10));
+  const second = harness.makePlayer("player-2", [new TestItemStack("minecraft:oak_log", 10)]);
   harness.activePlayers.push(second);
   harness.payment.startPayments();
   const firstClick = harness.click(first);
@@ -277,23 +364,32 @@ test("click processing is debounced and concurrent clicks unlock and credit only
   assert.equal(concurrentClick.cancel, true);
   harness.flush();
 
-  assert.equal(first.mainhand, undefined);
-  assert.equal(second.mainhand.amount, 10);
+  assert.equal(itemAt(first, 0), undefined);
+  assert.equal(itemAt(second, 0).amount, 10);
   assert.equal(harness.props.get("chunklock:progress:unlocked:total"), 1);
   assert.equal(first.props.get("chunklock:progress:player:unlocked:total"), 1);
   assert.equal(second.props.has("chunklock:progress:player:unlocked:total"), false);
   assert.equal(harness.wallRefreshes(), 1);
 });
 
-test("failed equipment mutation preserves the requirement and does not unlock", () => {
-  const harness = makeHarness({ remainingCost: 3, mainhand: new TestItemStack("minecraft:oak_log", 3) });
-  harness.setRejectEquipmentWrite(true);
+test("failed progress persistence restores the full inventory payment", () => {
+  const inventory = [];
+  inventory[0] = new TestItemStack("minecraft:oak_log", 8);
+  inventory[1] = new TestItemStack("minecraft:oak_log", 4);
+  const harness = makeHarness({ remainingCost: 10, inventory });
+  const player = harness.activePlayers[0];
+  const setProperty = harness.world.setDynamicProperty;
+  harness.world.setDynamicProperty = (propertyId, value) => {
+    if (propertyId === "chunklock:progress:unlocked:total") throw new Error("property write failed");
+    setProperty(propertyId, value);
+  };
   harness.payment.startPayments();
   harness.click();
   harness.flush();
 
-  assert.equal(harness.activePlayers[0].mainhand.amount, 3);
-  assert.equal(savedRequirement(harness).remainingCost, 3);
+  assert.equal(itemAt(player, 0).amount, 8);
+  assert.equal(itemAt(player, 1).amount, 4);
+  assert.equal(savedRequirement(harness).remainingCost, 10);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), false);
 });
 
@@ -309,20 +405,4 @@ test("unlock progress is dimension-aware and idempotent", () => {
   assert.equal(player.props.get("chunklock:progress:player:unlocked:total"), 2);
   assert.equal(player.props.get("chunklock:progress:player:unlocked:minecraft:overworld"), 1);
   assert.equal(player.props.get("chunklock:progress:player:unlocked:minecraft:nether"), 1);
-});
-
-test("failed progress persistence rolls back counters and leaves the chunk locked", () => {
-  const harness = makeHarness();
-  const player = harness.activePlayers[0];
-  const setProperty = harness.world.setDynamicProperty;
-  harness.world.setDynamicProperty = (propertyId, value) => {
-    if (propertyId === "chunklock:progress:unlocked:total") throw new Error("property write failed");
-    setProperty(propertyId, value);
-  };
-
-  assert.throws(() => harness.access.unlockChunk(player, "minecraft:overworld", 1, 0), /property write failed/);
-  assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), false);
-  assert.equal(harness.props.has("chunklock:progress:unlocked:minecraft:overworld"), false);
-  assert.equal(harness.props.has("chunklock:progress:unlocked:total"), false);
-  assert.equal(player.props.has("chunklock:progress:player:unlocked:total"), false);
 });

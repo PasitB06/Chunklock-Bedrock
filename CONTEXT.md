@@ -25,7 +25,7 @@ The number of required items still owed after earlier payments have been deducte
 _Avoid_: Base count, submitted stack size.
 
 **Payer**:
-The player who owns the submitted payment and receives credit when that payment completes an unlock.
+The player whose inventory supplies items to a requirement and receives credit when that payment completes an unlock.
 _Avoid_: The nearest player without evidence of ownership.
 
 **Safe position**:

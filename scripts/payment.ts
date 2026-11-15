@@ -1,4 +1,14 @@
-import { Entity, EquipmentSlot, EntityEquippableComponent, Player, system, world } from "@minecraft/server";
+import {
+  Container,
+  Entity,
+  EntityEquippableComponent,
+  EntityInventoryComponent,
+  EquipmentSlot,
+  ItemStack,
+  Player,
+  system,
+  world,
+} from "@minecraft/server";
 import { isOpenCell, unlockChunk } from "./access.js";
 import { refreshRequirementDisplays } from "./displays.js";
 import {
@@ -13,6 +23,15 @@ const DISPLAY_TYPE = "chunklock:requirement_display";
 const COOLDOWN_TICKS = 5;
 const cooldowns = new Map<string, number>();
 let started = false;
+
+type PaymentSource =
+  | { kind: "inventory"; container: Container; slot: number; stack: ItemStack }
+  | { kind: "offhand"; equippable: EntityEquippableComponent; stack: ItemStack };
+
+type PaymentEntry = PaymentSource & {
+  originalStack: ItemStack;
+  remainingStack?: ItemStack;
+};
 
 function actionBar(player: Player, message: string) {
   try {
@@ -43,17 +62,95 @@ function restoreRequirement(dimension: string, cx: number, cz: number, remaining
   }
 }
 
-function restoreHand(
-  equippable: EntityEquippableComponent,
-  stack: NonNullable<ReturnType<EntityEquippableComponent["getEquipment"]>>
-) {
+function writePaymentEntry(entry: PaymentEntry, stack: ItemStack | undefined) {
+  if (entry.kind === "inventory") {
+    entry.container.setItem(entry.slot, stack);
+    return;
+  }
+  if (!entry.equippable.setEquipment(EquipmentSlot.Offhand, stack)) {
+    throw new Error("Could not update the player's offhand stack.");
+  }
+}
+
+function restorePaymentEntries(entries: PaymentEntry[]) {
+  for (const entry of [...entries].reverse()) {
+    try {
+      writePaymentEntry(entry, entry.originalStack.clone());
+    } catch (error) {
+      console.error(`[Chunklock] Could not restore an inventory stack after failed payment: ${error}`);
+    }
+  }
+}
+
+function applyPaymentEntries(entries: PaymentEntry[]): (() => void) | undefined {
+  const attempted: PaymentEntry[] = [];
   try {
-    if (!equippable.setEquipment(EquipmentSlot.Mainhand, stack)) {
-      console.error("[Chunklock] Could not restore a player's main-hand stack after failed payment.");
+    for (const entry of entries) {
+      attempted.push(entry);
+      writePaymentEntry(entry, entry.remainingStack?.clone());
     }
   } catch (error) {
-    console.error(`[Chunklock] Could not restore a player's main-hand stack after failed payment: ${error}`);
+    restorePaymentEntries(attempted);
+    console.warn(`[Chunklock] Could not update inventory stacks for payment: ${error}`);
+    return undefined;
   }
+
+  let restored = false;
+  return () => {
+    if (restored) return;
+    restored = true;
+    restorePaymentEntries(entries);
+  };
+}
+
+function matchingSources(
+  player: Player,
+  itemId: string,
+  equippable: EntityEquippableComponent | undefined
+): PaymentSource[] {
+  const sources: PaymentSource[] = [];
+  const inventory = player.getComponent("minecraft:inventory") as EntityInventoryComponent | undefined;
+  const container = inventory?.container;
+
+  if (container) {
+    const visited = new Set<number>();
+    const selectedSlot = player.selectedSlotIndex;
+    const slots: number[] = [];
+    if (Number.isSafeInteger(selectedSlot) && selectedSlot >= 0 && selectedSlot < container.size) {
+      slots.push(selectedSlot);
+    }
+    for (let slot = 0; slot < container.size; slot++) slots.push(slot);
+
+    for (const slot of slots) {
+      if (visited.has(slot)) continue;
+      visited.add(slot);
+      const stack = container.getItem(slot);
+      if (stack?.typeId === itemId && stack.amount > 0) {
+        sources.push({ kind: "inventory", container, slot, stack });
+      }
+    }
+  }
+
+  const offhand = equippable?.getEquipment(EquipmentSlot.Offhand);
+  if (offhand?.typeId === itemId && offhand.amount > 0 && equippable) {
+    sources.push({ kind: "offhand", equippable, stack: offhand });
+  }
+  return sources;
+}
+
+function planPayment(sources: PaymentSource[], amount: number): PaymentEntry[] {
+  let remaining = amount;
+  const entries: PaymentEntry[] = [];
+  for (const source of sources) {
+    if (remaining <= 0) break;
+    const taken = Math.min(source.stack.amount, remaining);
+    const left = source.stack.amount - taken;
+    const remainingStack = left > 0 ? source.stack.clone() : undefined;
+    if (remainingStack) remainingStack.amount = left;
+    entries.push({ ...source, originalStack: source.stack.clone(), remainingStack });
+    remaining -= taken;
+  }
+  return entries;
 }
 
 function refreshAfterPayment(unlocked: boolean) {
@@ -78,14 +175,16 @@ function finishUnlock(
   cx: number,
   cz: number,
   previousCost: number,
-  equippable?: EntityEquippableComponent,
-  previousStack?: ReturnType<EntityEquippableComponent["getEquipment"]>
+  rollbackPayment?: () => void
 ) {
   try {
-    if (!setChunkRequirementRemainingCost(dimension, cx, cz, 0)) return false;
+    if (!setChunkRequirementRemainingCost(dimension, cx, cz, 0)) {
+      rollbackPayment?.();
+      return false;
+    }
     if (!unlockChunk(player, dimension, cx, cz)) {
       restoreRequirement(dimension, cx, cz, previousCost);
-      if (equippable && previousStack) restoreHand(equippable, previousStack.clone());
+      rollbackPayment?.();
       return false;
     }
     try {
@@ -100,7 +199,7 @@ function finishUnlock(
   } catch (error) {
     if (!isOpenCell(dimension, cx, cz)) {
       restoreRequirement(dimension, cx, cz, previousCost);
-      if (equippable && previousStack) restoreHand(equippable, previousStack.clone());
+      rollbackPayment?.();
     }
     console.error(`[Chunklock] Could not unlock chunk ${dimension}:${cx}:${cz}: ${error}`);
     actionBar(player, "[Chunklock] Payment could not be completed. Try again.");
@@ -136,54 +235,54 @@ function processClick(player: Player, target: Entity) {
     return;
   }
 
+  const itemName = formatItemDisplayName(requirement.itemId);
   let equippable: EntityEquippableComponent | undefined;
-  let held: ReturnType<EntityEquippableComponent["getEquipment"]>;
+  let sources: PaymentSource[];
   try {
     equippable = player.getComponent("minecraft:equippable") as EntityEquippableComponent | undefined;
-    held = equippable?.getEquipment(EquipmentSlot.Mainhand);
-  } catch {
-    actionBar(player, "[Chunklock] Could not read the item in your main hand.");
+    if (equippable?.getEquipment(EquipmentSlot.Mainhand)?.typeId === "minecraft:barrier") {
+      finishUnlock(player, target, dimension, lockedX, lockedZ, requirement.remainingCost);
+      return;
+    }
+    sources = matchingSources(player, requirement.itemId, equippable);
+  } catch (error) {
+    console.warn(`[Chunklock] Could not inspect the player's inventory: ${error}`);
+    actionBar(player, "[Chunklock] Could not read your inventory. Try again.");
     return;
   }
 
-  const itemName = formatItemDisplayName(requirement.itemId);
-  if (!held) {
-    actionBar(player, `[Chunklock] Requires ${itemName} × ${requirement.remainingCost}.`);
-    return;
-  }
-  if (held.typeId === "minecraft:barrier") {
-    finishUnlock(player, target, dimension, lockedX, lockedZ, requirement.remainingCost);
-    return;
-  }
-  if (held.typeId !== requirement.itemId) {
+  const totalAvailable = sources.reduce((total, source) => total + source.stack.amount, 0);
+  if (totalAvailable <= 0) {
     soundAndParticle(target, "note.didgeridoo", 0.7, "minecraft:basic_smoke_particle");
     actionBar(player, `[Chunklock] This chunk requires ${itemName} × ${requirement.remainingCost}.`);
     return;
   }
 
-  const paid = Math.min(held.amount, requirement.remainingCost);
-  if (paid <= 0 || !equippable) return;
+  const paid = Math.min(totalAvailable, requirement.remainingCost);
   const remainingCost = requirement.remainingCost - paid;
-  const previousStack = held.clone();
-  const updatedStack = held.amount > paid ? held.clone() : undefined;
-  if (updatedStack) updatedStack.amount = held.amount - paid;
+  const entries = planPayment(sources, paid);
 
   try {
-    if (!setChunkRequirementRemainingCost(dimension, lockedX, lockedZ, remainingCost)) return;
-    if (!equippable.setEquipment(EquipmentSlot.Mainhand, updatedStack)) {
-      restoreRequirement(dimension, lockedX, lockedZ, requirement.remainingCost);
-      actionBar(player, "[Chunklock] Could not update your held stack. Try again.");
+    if (!setChunkRequirementRemainingCost(dimension, lockedX, lockedZ, remainingCost)) {
+      actionBar(player, "[Chunklock] Payment could not be completed. Try again.");
       return;
     }
   } catch (error) {
     restoreRequirement(dimension, lockedX, lockedZ, requirement.remainingCost);
+    console.warn(`[Chunklock] Could not save payment for ${dimension}:${lockedX}:${lockedZ}: ${error}`);
     actionBar(player, "[Chunklock] Payment could not be completed. Try again.");
-    console.warn(`[Chunklock] Could not apply payment for ${dimension}:${lockedX}:${lockedZ}: ${error}`);
+    return;
+  }
+
+  const rollbackPayment = applyPaymentEntries(entries);
+  if (!rollbackPayment) {
+    restoreRequirement(dimension, lockedX, lockedZ, requirement.remainingCost);
+    actionBar(player, "[Chunklock] Could not update your inventory. Try again.");
     return;
   }
 
   if (remainingCost === 0) {
-    finishUnlock(player, target, dimension, lockedX, lockedZ, requirement.remainingCost, equippable, previousStack);
+    finishUnlock(player, target, dimension, lockedX, lockedZ, requirement.remainingCost, rollbackPayment);
     return;
   }
 
