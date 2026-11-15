@@ -36,7 +36,7 @@ Dependencies are already installed on the original development machine; use `npm
 3. Confirm that **Chunklock Resources** is also active. The behavior pack declares this dependency.
 4. Enter the world and look for `[Chunklock] Bedrock add-on is ready.` in chat.
 
-The starter pins stable Script API `@minecraft/server` **2.0.0** and declares a minimum Bedrock version of **1.21.90**.
+The starter pins stable Script API `@minecraft/server` **2.6.0** and declares a minimum Bedrock version of **1.26.60**.
 It does not require Beta APIs or Experiments. Restart Minecraft if newly deployed packs are not listed.
 Building and copying files does not prove gameplay works; the readiness message must be checked in a world.
 

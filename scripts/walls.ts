@@ -39,7 +39,7 @@ function refreshWalls() {
       for (const edge of wallEdges(cells, (x, z) => isOpenCell(dimension.id, x, z))) {
         if (Math.hypot(edge.x - player.location.x, edge.z - player.location.z) > 40) continue;
         for (let y = dimension.heightRange.min; y < dimension.heightRange.max; y += 64) {
-          const id = `${edge.key}:${y}`;
+          const id = `v2:${edge.key}:${y}`;
           const wall = {
             dimension,
             id,

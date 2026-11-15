@@ -45,7 +45,8 @@ write(RP / 'render_controllers/border_wall.render_controllers.json', {
         'textures': ['Texture.default']
     }}
 })
-# Slightly expanded width and thin depth avoid coplanar block-face overlap.
+# Exact tile edges avoid overlapping adjacent faces. Two-pixel thickness keeps
+# opposite translucent surfaces farther apart than the original subpixel slab.
 write(RP / 'models/entity/border_wall.geo.json', {
     'format_version': '1.12.0',
     'minecraft:geometry': [{
@@ -53,10 +54,10 @@ write(RP / 'models/entity/border_wall.geo.json', {
                         'texture_height': 16, 'visible_bounds_width': 18,
                         'visible_bounds_height': 66, 'visible_bounds_offset': [0, 32, 0]},
         'bones': [{'name': 'wall', 'pivot': [0, 0, 0], 'cubes': [{
-            'origin': [-128.08, 0, -0.16], 'size': [256.16, 1024, 0.32],
+            'origin': [-128, tile * 256, -1], 'size': [256, 256, 2],
             'uv': {face: {'uv': [0, 0], 'uv_size': [16, 16]}
-                   for face in ['north', 'south', 'east', 'west', 'up', 'down']}
-        }]}]
+                   for face in ['north', 'south']}
+        } for tile in range(4)]}]
     }]
 })
 
@@ -69,7 +70,7 @@ rows = bytearray()
 for y in range(16):
     rows.append(0)
     for x in range(16):
-        rows.extend((45, 185, 255, 140 if x in (0, 15) or y in (0, 15) else 48))
+        rows.extend((45, 185, 255, 30))
 png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', 16, 16, 8, 6, 0, 0, 0))
 png += chunk(b'IDAT', zlib.compress(bytes(rows))) + chunk(b'IEND', b'')
 texture = RP / 'textures/entity/border_wall.png'

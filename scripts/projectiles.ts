@@ -2,7 +2,7 @@ import { Entity, system, Vector3, world } from "@minecraft/server";
 import { isOpenCell } from "./access.js";
 import { segmentTouchesLocked } from "./regions.js";
 
-// Best-effort prevention: stable API 2.0 has no cancellable pre-projectile-hit event.
+// Best-effort prevention: stable API 2.6 has no cancellable pre-projectile-hit event.
 const tracked = new Map<string, { entity: Entity; previous: Vector3; idle: number }>();
 function adopt(entity: Entity) {
   try {

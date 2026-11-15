@@ -101,10 +101,9 @@ test("protection cancels locked targets and placement across a border, but permi
     getDynamicProperty: (key) => props.get(key),
     setDynamicProperty: (key, value) => props.set(key, value),
     beforeEvents: Object.fromEntries(
-      ["playerBreakBlock", "playerInteractWithBlock", "playerInteractWithEntity", "explosion"].map((k) => [
-        k,
-        signal(k),
-      ])
+      ["playerBreakBlock", "playerInteractWithBlock", "playerInteractWithEntity", "explosion", "entityHurt"].map(
+        (k) => [k, signal(k)]
+      )
     ),
   };
   const api = {
@@ -218,4 +217,57 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
   players = [];
   intervals[0]();
   assert.equal(player.dimension.getEntities().length, 0);
+});
+
+test("combat guard cancels melee and same-tick projectile damage in locked cells", () => {
+  const callbacks = {};
+  const api = {
+    world: {
+      getDynamicProperty: (key) => (key.endsWith(":0:0") ? true : undefined),
+      beforeEvents: Object.fromEntries(
+        ["playerBreakBlock", "playerInteractWithBlock", "playerInteractWithEntity", "explosion", "entityHurt"].map(
+          (k) => [k, { subscribe: (fn) => (callbacks[k] = fn) }]
+        )
+      ),
+      afterEvents: { playerLeave: { subscribe: () => {} } },
+    },
+    system: { currentTick: 10, run: () => {} },
+    Direction: {},
+  };
+  load("protection", api).startProtection();
+  assert.equal(typeof callbacks.entityHurt, "function");
+  for (const cause of ["entityAttack", "projectile"]) {
+    const e = {
+      hurtEntity: { dimension: { id: "minecraft:overworld" }, location: { x: 17, z: 8 } },
+      damageSource: { cause },
+      cancel: false,
+    };
+    callbacks.entityHurt(e);
+    assert.equal(e.cancel, true);
+    e.hurtEntity.location.x = 8;
+    e.cancel = false;
+    callbacks.entityHurt(e);
+    assert.equal(e.cancel, false);
+  }
+  const fall = {
+    hurtEntity: { dimension: { id: "minecraft:overworld" }, location: { x: 17, z: 8 } },
+    damageSource: { cause: "fall" },
+    cancel: false,
+  };
+  callbacks.entityHurt(fall);
+  assert.equal(fall.cancel, false, "environmental damage must remain unchanged");
+});
+
+test("wall geometry uses bounded tiles with no translucent edge caps", () => {
+  const geometry = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "../resource_packs/chunklock/models/entity/border_wall.geo.json"), "utf8")
+  );
+  const cubes = geometry["minecraft:geometry"][0].bones[0].cubes;
+  assert.equal(cubes.length, 4);
+  for (const cube of cubes) {
+    assert.equal(cube.size[0], 256);
+    assert.ok(cube.size[1] <= 256);
+    assert.ok(cube.size[2] >= 2);
+    assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
+  }
 });

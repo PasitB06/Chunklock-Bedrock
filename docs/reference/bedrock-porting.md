@@ -5,7 +5,7 @@ Read [runtime-flow](runtime-flow.md), [state-model](state-model.md) and the rele
 
 ## Current status
 
-The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime appearance/performance and best-effort projectile interception await testing. Movement locking, payment and progression remain unimplemented.
+The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime appearance/performance await retesting. Stable API 2.6.0 now cancels attack damage to targets in locked cells before damage is applied, in addition to best-effort projectile removal. Movement locking, payment and progression remain unimplemented.
 
 ## Responsibility map
 
@@ -23,7 +23,7 @@ The [chunk prototype](../chunk-prototype.md) implements persistent dimension-awa
 | Item payments | tick_item_in_chunk, check_submit/success/failure | Proven payer ownership, ID validation, deductions and single-return handling for excess/wrong items | Not implemented |
 | Unlocking and totals | unlock_current_chunk | One state transition, helper cleanup and correct world/payer credits | Not implemented |
 | Dimension transitions | util/change_dimension, dimension/* | Destination readiness and separate paid/automatic starting access | Not implemented |
-| Projectiles/pearls | projectile/*, pearl/* | Bounded component tracking with swept-cell and velocity lookahead checks | Best-effort interception implemented; no pre-hit guarantee |
+| Projectiles/pearls | projectile/*, pearl/* | Bounded component tracking with swept-cell and velocity lookahead checks | Pre-damage guard added in 0.2.1; projectile removal remains best-effort |
 | Commands and difficulty | triggers, chunk_difficulty/*, reroll | Permission-aware commands/menus and the post-first-unlock restriction | Not implemented |
 | Item names and dye | translate_item_name/*, dye predicates, dye_chunk | Localization and dye handling through supported Bedrock mechanisms, without Java NBT/macros | Not implemented |
 | Milestones/advancements | advancements, render messages | Add-on-owned progression separating world/personal totals; not native Java advancements | Not implemented |
@@ -42,7 +42,7 @@ The [chunk prototype](../chunk-prototype.md) implements persistent dimension-awa
 
 ## Compatibility to check during implementation
 
-The project pins `@minecraft/server` 2.0.0. Installed package type definitions establish the API surface used by this build.
+The project pins `@minecraft/server` 2.6.0. Installed package type definitions establish the API surface used by this build.
 They include `system.runInterval`, `world.afterEvents.playerSpawn`, `world.afterEvents.playerDimensionChange`,
 `world.beforeEvents.playerBreakBlock`, world dynamic-property methods and Entity.teleport.
 API availability is not evidence of behavior parity; inspect execution timing and restrictions when using each API.

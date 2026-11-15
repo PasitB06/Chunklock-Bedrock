@@ -15,6 +15,19 @@ function notify(player: Player) {
 }
 
 export function startProtection() {
+  // Cancel at the damage boundary, including hits before projectile polling runs.
+  world.beforeEvents.entityHurt.subscribe((event) => {
+    const target = event.hurtEntity;
+    const source = event.damageSource;
+    const attack =
+      source.damagingEntity ||
+      source.damagingProjectile ||
+      source.cause === "entityAttack" ||
+      source.cause === "projectile";
+    if (attack && isLocked(target.dimension.id, target.location.x, target.location.z)) {
+      event.cancel = true;
+    }
+  });
   world.beforeEvents.playerBreakBlock.subscribe((event) => {
     const { x, z } = event.block.location;
     if (isLocked(event.block.dimension.id, x, z)) {
