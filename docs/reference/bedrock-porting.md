@@ -5,7 +5,7 @@ Read [runtime-flow](runtime-flow.md), [state-model](state-model.md) and the rele
 
 ## Current status
 
-The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime appearance/performance await retesting. Stable API 2.6.0 now cancels attack damage to targets in locked cells before damage is applied, in addition to best-effort projectile removal. Movement locking, payment and progression remain unimplemented.
+The [chunk prototype](../chunk-prototype.md) implements persistent dimension-aware records, bounded cardinal expansion near players and debug center particles/action-bar coordinates. Chunk records remain entity-free; optional translucent wall helpers and block/right-click protection are described in [visuals and protection](../visuals-protection.md). Runtime diagnostics confirmed and corrected helper suffocation deaths; 24 loaded helpers retained full health and stable IDs in a stationary test. Full visual alignment and performance remain unverified. Stable API 2.6.0 now cancels attack damage to targets in locked cells before damage is applied, in addition to best-effort projectile removal. Movement locking, payment and progression remain unimplemented.
 
 ## Responsibility map
 
@@ -19,7 +19,7 @@ The [chunk prototype](../chunk-prototype.md) implements persistent dimension-awa
 | Price scaling | init_locked_chunk_unlock_item | Separate dimension counters and roll-time costs; preserve or explicitly revise the four difficulty formulas | Not implemented |
 | Movement/mining protection | collision/*, interaction helpers | Locked-block breaking/right-click cancellation and adjacent placement checks | Block protection implemented for testing; movement protection not implemented |
 | Player proximity | tick_chunk_player_proximity_check, chunk_proximity/* | Relevant-state transitions and bounded presentation/payment work | Not implemented |
-| Borders and prices | render/update/kill helpers, block/item/text displays | Nearby cyan translucent custom wall entities with deduplicated segments | Walls implemented for testing; price display not implemented |
+| Borders and prices | render/update/kill helpers, block/item/text displays | Nearby cyan translucent custom wall entities with deduplicated segments | Walls implemented; suffocation fix verified with stable live helper IDs; full alignment pending; price display not implemented |
 | Item payments | tick_item_in_chunk, check_submit/success/failure | Proven payer ownership, ID validation, deductions and single-return handling for excess/wrong items | Not implemented |
 | Unlocking and totals | unlock_current_chunk | One state transition, helper cleanup and correct world/payer credits | Not implemented |
 | Dimension transitions | util/change_dimension, dimension/* | Destination readiness and separate paid/automatic starting access | Not implemented |

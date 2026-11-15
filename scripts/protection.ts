@@ -18,6 +18,11 @@ export function startProtection() {
   // Cancel at the damage boundary, including hits before projectile polling runs.
   world.beforeEvents.entityHurt.subscribe((event) => {
     const target = event.hurtEntity;
+    // Visual helpers can be anchored inside solid terrain. They are never mobs.
+    if (target.typeId === "chunklock:border_wall") {
+      event.cancel = true;
+      return;
+    }
     const source = event.damageSource;
     const attack =
       source.damagingEntity ||

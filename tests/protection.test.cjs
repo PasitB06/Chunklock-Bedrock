@@ -256,6 +256,19 @@ test("combat guard cancels melee and same-tick projectile damage in locked cells
   };
   callbacks.entityHurt(fall);
   assert.equal(fall.cancel, false, "environmental damage must remain unchanged");
+  for (const cause of ["fall", "suffocation", "void", "entityAttack"]) {
+    const wall = {
+      hurtEntity: {
+        typeId: "chunklock:border_wall",
+        dimension: { id: "minecraft:overworld" },
+        location: { x: 8, z: 8 },
+      },
+      damageSource: { cause },
+      cancel: false,
+    };
+    callbacks.entityHurt(wall);
+    assert.equal(wall.cancel, true, `display helpers must survive ${cause} even on the open side`);
+  }
 });
 
 test("wall geometry uses bounded tiles with no translucent edge caps", () => {
@@ -270,4 +283,15 @@ test("wall geometry uses bounded tiles with no translucent edge caps", () => {
     assert.ok(cube.size[2] >= 2);
     assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
   }
+});
+
+test("wall helpers breathe in terrain and use an unconditional damage sensor", () => {
+  const file = path.join(__dirname, "../behavior_packs/chunklock/entities/border_wall.json");
+  const components = JSON.parse(fs.readFileSync(file, "utf8"))["minecraft:entity"].components;
+  assert.equal(components["minecraft:breathable"].breathes_solids, true);
+  assert.equal(components["minecraft:breathable"].breathes_water, true);
+  assert.ok(components["minecraft:health"].value >= 100);
+  const sensor = components["minecraft:damage_sensor"].triggers[0];
+  assert.equal(sensor.deals_damage, "no");
+  assert.equal(sensor.cause, undefined);
 });

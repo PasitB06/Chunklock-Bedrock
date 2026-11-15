@@ -21,8 +21,11 @@ write(BP / 'entities/border_wall.json', {
         'components': {
             'minecraft:physics': {'has_gravity': False, 'has_collision': False},
             'minecraft:collision_box': {'width': 0, 'height': 0},
-            'minecraft:health': {'value': 1, 'max': 1},
-            'minecraft:damage_sensor': {'triggers': [{'cause': 'all', 'deals_damage': 'no'}]},
+            'minecraft:health': {'value': 100, 'max': 100},
+            'minecraft:damage_sensor': {'triggers': [{'deals_damage': 'no'}]},
+            'minecraft:breathable': {'total_supply': -1, 'suffocate_time': -1,
+                                    'breathes_air': True, 'breathes_water': True,
+                                    'breathes_solids': True, 'generates_bubbles': False},
             'minecraft:pushable': {'is_pushable': False, 'is_pushable_by_piston': False},
             'minecraft:fire_immune': {}, 'minecraft:persistent': {}
         }

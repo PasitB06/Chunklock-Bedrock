@@ -57,3 +57,13 @@ The earlier API 2.0 limitations described above are historical. The pre-damage g
 After deploying 0.2.1, save and close the world, fully restart Minecraft to reload resource geometry, and re-test the same sword and close-range bow cases against a mob outside the starting chunk. A mob inside the open chunk should still take normal damage. Recheck mining and placement across the border. No existing unlock or marker properties are reset.
 
 Primary API evidence: [stable changelog, 2.6.0](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/changelog?view=minecraft-bedrock-stable#260) and [EntityHurtBeforeEvent](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/entityhurtbeforeevent?view=minecraft-bedrock-stable).
+
+## Wall suffocation correction and runtime evidence
+
+A read-only `entityDie` listener confirmed `suffocation` deaths in the user's flat test world. Anchors can sit inside solid terrain; the dying entity's pose made the large model appear to fall and tilt, and reconciliation then spawned replacements. This was a server lifecycle defect, not proven GPU distortion.
+
+The server definition now breathes in solids and water, has 100 health and uses an unconditional no-damage sensor. The pre-damage callback also cancels every damage cause for `chunklock:border_wall`, before applying the separate locked-target combat rules. Ordinary mobs in open chunks retain their normal damage behavior. Geometry, chunk coordinates, access and marker records are unchanged by this correction.
+
+`wall-diagnostics.ts` is new Bedrock-only diagnostic behavior called once by `main.ts`, alongside the wall manager. It reads loaded helper IDs and health at 200 and 400 ticks, reports a baseline and comparison, and rate-limits actual death reports. It never changes access or spawns helpers. ID changes can be legitimate when players move or helpers reconcile; compare while stationary. With cheats already enabled, `/scriptevent chunklock:wall_debug` also prints up to three helper positions per dimension; enabling cheats is not required for the automatic summaries.
+
+After a full Minecraft restart and world re-entry on Bedrock 1.26.63, the stationary test reported `Alive=24, minHP=100` twice and `IDs=stable` on the second sample. No repeated deaths or falling sheets were observed in that session. The user separately confirmed the melee and close-range bow protection. Full visual alignment at every height, dimension and view angle remains unverified; the low-alpha surface is faint at night. The existing generic pack-loading warning is still unclassified.
