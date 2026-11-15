@@ -1,5 +1,5 @@
 import { GameMode, Player, Vector3, system, world } from "@minecraft/server";
-import { isOpenCell, seedPlayer } from "./access.js";
+import { isLocked, seedPlayer } from "./access.js";
 
 const SAFE_POSITIONS_PROPERTY = "chunklock:collision:safe_positions";
 const PERSIST_INTERVAL = 20;
@@ -66,13 +66,13 @@ function capture(player: Player): SafePosition {
 }
 
 function isOpenPosition(position: SafePosition): boolean {
-  return isOpenCell(position.dimensionId, position.location.x, position.location.z);
+  return !isLocked(position.dimensionId, position.location.x, position.location.z);
 }
 
 function findFallback(player: Player): SafePosition | undefined {
   const dimension = player.dimension;
   const spawn = player.getSpawnPoint();
-  if (spawn?.dimension.id === dimension.id && isOpenCell(dimension.id, spawn.x, spawn.z)) {
+  if (spawn?.dimension.id === dimension.id && !isLocked(dimension.id, spawn.x, spawn.z)) {
     return {
       dimensionId: dimension.id,
       location: { x: spawn.x, y: spawn.y, z: spawn.z },
@@ -157,7 +157,10 @@ function checkPlayers() {
         nextFallbackAttempt.set(player.id, currentTick + PERSIST_INTERVAL);
         if (fallback) positions.set(fallback.dimensionId, fallback);
       }
-      if (fallback) returnPlayer(player, fallback);
+      if (fallback) {
+        fallback.rotation = current.rotation;
+        returnPlayer(player, fallback);
+      }
     }
 
     if (currentTick % PERSIST_INTERVAL === 0) persist(player, positions);

@@ -366,3 +366,83 @@ test("projectiles can reach exposed border hitboxes before crossing locked terra
   tick();
   assert.equal(removed, 1, "an actual crossing must still be intercepted");
 });
+
+test("collision allows free movement within open chunks and teleports back on locked entry", () => {
+  const props = new Map();
+  const playerProps = new Map();
+  const intervals = [];
+  const teleports = [];
+  const dimension = {
+    id: "minecraft:overworld",
+    heightRange: { min: -64, max: 320 },
+    getTopmostBlock: ({ x, z }) => ({ location: { x: Math.floor(x), y: 63, z: Math.floor(z) } }),
+  };
+  let gameMode = "Survival";
+  let rotation = { x: 0, y: 90 };
+  const player = {
+    id: "p1",
+    dimension,
+    location: { x: 8.5, y: 64, z: 8.5 },
+    getRotation: () => rotation,
+    getGameMode: () => gameMode,
+    getSpawnPoint: () => undefined,
+    getDynamicProperty: (k) => playerProps.get(k),
+    setDynamicProperty: (k, v) => playerProps.set(k, v),
+    teleport: (loc, opts) => {
+      teleports.push({ location: { ...loc }, rotation: { ...opts.rotation } });
+      player.location = { ...loc };
+    },
+  };
+  const api = {
+    GameMode: { Spectator: "Spectator", Survival: "Survival" },
+    world: {
+      getAllPlayers: () => [player],
+      getDimension: () => dimension,
+      getDynamicProperty: (k) => props.get(k),
+      setDynamicProperty: (k, v) => props.set(k, v),
+      getDynamicPropertyIds: () => [...props.keys()],
+      afterEvents: { playerLeave: { subscribe: () => {} } },
+    },
+    system: {
+      currentTick: 1,
+      runInterval: (fn) => intervals.push(fn),
+    },
+  };
+  load("collision", api).startCollision();
+  const tick = intervals[0];
+  assert.equal(teleports.length, 0, "seeding at center must not teleport");
+
+  // Walk away from center toward the eastern and southern edges of open chunk (0, 0).
+  player.location = { x: 15.8, y: 64, z: 14.2 };
+  api.system.currentTick = 2;
+  tick();
+  assert.equal(teleports.length, 0, "walking within open chunk must not pull player back to center");
+
+  // Step across the border into locked chunk (1, 0) while turning the camera.
+  player.location = { x: 16.2, y: 64, z: 14.2 };
+  rotation = { x: 10, y: 135 };
+  api.system.currentTick = 3;
+  tick();
+  assert.equal(teleports.length, 1, "stepping into a locked chunk must trigger teleport back");
+  assert.deepEqual(teleports[0].location, { x: 15.8, y: 64, z: 14.2 });
+  assert.deepEqual(teleports[0].rotation, { x: 10, y: 135 }, "current viewing rotation must be retained");
+
+  // Negative open chunk (-1, 0) allows movement up to -0.1 and blocks -16.1.
+  props.set("chunklock:open:minecraft:overworld:-1:0", true);
+  player.location = { x: -0.2, y: 64, z: 4.5 };
+  api.system.currentTick = 4;
+  tick();
+  assert.equal(teleports.length, 1);
+  player.location = { x: -16.1, y: 64, z: 4.5 };
+  api.system.currentTick = 5;
+  tick();
+  assert.equal(teleports.length, 2);
+  assert.deepEqual(teleports[1].location, { x: -0.2, y: 64, z: 4.5 });
+
+  // Spectator mode is exempt from collision pullback.
+  gameMode = "Spectator";
+  player.location = { x: 32.5, y: 64, z: 32.5 };
+  api.system.currentTick = 6;
+  tick();
+  assert.equal(teleports.length, 2, "Spectator must bypass locked chunk pullback");
+});
