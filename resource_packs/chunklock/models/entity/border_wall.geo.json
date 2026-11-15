@@ -6,8 +6,8 @@
         "identifier": "geometry.chunklock.border_wall",
         "texture_width": 16,
         "texture_height": 16,
-        "visible_bounds_width": 18,
-        "visible_bounds_height": 66,
+        "visible_bounds_width": 48,
+        "visible_bounds_height": 128,
         "visible_bounds_offset": [
           0,
           32,
@@ -25,14 +25,14 @@
           "cubes": [
             {
               "origin": [
-                -128,
+                -128.05,
                 0,
-                -1
+                -0.05
               ],
               "size": [
+                256.1,
                 256,
-                256,
-                2
+                0.1
               ],
               "uv": {
                 "north": {
@@ -59,14 +59,14 @@
             },
             {
               "origin": [
-                -128,
+                -128.05,
                 256,
-                -1
+                -0.05
               ],
               "size": [
+                256.1,
                 256,
-                256,
-                2
+                0.1
               ],
               "uv": {
                 "north": {
@@ -93,14 +93,14 @@
             },
             {
               "origin": [
-                -128,
+                -128.05,
                 512,
-                -1
+                -0.05
               ],
               "size": [
+                256.1,
                 256,
-                256,
-                2
+                0.1
               ],
               "uv": {
                 "north": {
@@ -127,14 +127,14 @@
             },
             {
               "origin": [
-                -128,
+                -128.05,
                 768,
-                -1
+                -0.05
               ],
               "size": [
+                256.1,
                 256,
-                256,
-                2
+                0.1
               ],
               "uv": {
                 "north": {

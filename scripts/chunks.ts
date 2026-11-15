@@ -1,4 +1,5 @@
 import { system, world } from "@minecraft/server";
+import { refreshActionNotice } from "./notices.js";
 import { ensureChunkRequirement, requirementPropertyId } from "./requirements.js";
 
 // Prototype counterparts: init_chunk_marker, init_neighbors, tick_chunk_marker.
@@ -51,9 +52,11 @@ export function startChunks() {
         ])
           ensure(x + dx, z + dz);
       }
-      player.onScreenDisplay.setActionBar(
-        `[Chunklock prototype] Chunk ${cx}, ${cz} | Center ${cx * 16 + 8}, ${cz * 16 + 8} | Records ${total}/${LIMIT}`
-      );
+      if (!refreshActionNotice(player)) {
+        player.onScreenDisplay.setActionBar(
+          `[Chunklock prototype] Chunk ${cx}, ${cz} | Center ${cx * 16 + 8}, ${cz * 16 + 8} | Records ${total}/${LIMIT}`
+        );
+      }
       for (let x = cx - 2; x <= cx + 2; x++) {
         for (let z = cz - 2; z <= cz + 2; z++) {
           if (world.getDynamicProperty(key(x, z)) === undefined) continue;

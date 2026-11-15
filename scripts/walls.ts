@@ -3,9 +3,21 @@ import { isOpenCell, seedPlayer } from "./access.js";
 import { chunkAt, wallEdges } from "./regions.js";
 
 const TYPE = "chunklock:border_wall";
-const MAX_WALLS = 128;
+const MAX_WALLS = 192;
+const VERTICAL_VIEW_RANGE = 96;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
+
+function alignWall(entity: Entity, wall: { x: number; y: number; z: number; rotation: number }) {
+  const current = entity.location;
+  if (
+    current &&
+    (Math.abs(current.x - wall.x) > 0.01 || Math.abs(current.y - wall.y) > 0.01 || Math.abs(current.z - wall.z) > 0.01)
+  ) {
+    entity.teleport?.({ x: wall.x, y: wall.y, z: wall.z });
+  }
+  entity.setRotation({ x: 0, y: wall.rotation });
+}
 
 export function refreshWalls() {
   const players = world.getAllPlayers();
@@ -37,9 +49,12 @@ export function refreshWalls() {
           if (isOpenCell(dimension.id, x, z)) cells.push({ x, z });
         }
       for (const edge of wallEdges(cells, (x, z) => isOpenCell(dimension.id, x, z))) {
-        if (Math.hypot(edge.x - player.location.x, edge.z - player.location.z) > 40) continue;
+        const horizontalDistance = Math.hypot(edge.x - player.location.x, edge.z - player.location.z);
+        if (horizontalDistance > 40) continue;
         for (let y = dimension.heightRange.min; y < dimension.heightRange.max; y += 64) {
-          const id = `v2:${edge.key}:${y}`;
+          const verticalDistance = Math.abs(y + 32 - player.location.y);
+          if (verticalDistance > VERTICAL_VIEW_RANGE) continue;
+          const id = `v3:${edge.key}:${y}`;
           const wall = {
             dimension,
             id,
@@ -47,7 +62,7 @@ export function refreshWalls() {
             y,
             z: edge.z,
             rotation: edge.axis === "x" ? 0 : 90,
-            priority: Math.abs(y + 32 - player.location.y),
+            priority: verticalDistance + horizontalDistance * 0.5,
           };
           const previous = wanted.get(id);
           if (!previous || wall.priority < previous.priority) wanted.set(id, wall);
@@ -60,6 +75,7 @@ export function refreshWalls() {
       if (typeof id !== "string" || !wanted.has(id) || found.has(id) || active >= MAX_WALLS) {
         entity.remove();
       } else {
+        alignWall(entity, wanted.get(id)!);
         found.add(id);
         active++;
       }
@@ -72,7 +88,7 @@ export function refreshWalls() {
     let entity: Entity | undefined;
     try {
       entity = wall.dimension.spawnEntity(TYPE, { x: wall.x, y: wall.y, z: wall.z });
-      entity.setRotation({ x: 0, y: wall.rotation });
+      alignWall(entity, wall);
       entity.setDynamicProperty("chunklock:wall_key", wall.id);
       active++;
       spawnBudget--;

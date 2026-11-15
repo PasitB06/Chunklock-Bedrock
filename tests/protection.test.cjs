@@ -310,17 +310,30 @@ test("combat guard cancels melee and same-tick projectile damage in locked cells
 });
 
 test("wall geometry uses bounded tiles with no translucent edge caps", () => {
+  const root = path.join(__dirname, "..");
   const geometry = JSON.parse(
-    fs.readFileSync(path.join(__dirname, "../resource_packs/chunklock/models/entity/border_wall.geo.json"), "utf8")
-  );
-  const cubes = geometry["minecraft:geometry"][0].bones[0].cubes;
+    fs.readFileSync(path.join(root, "resource_packs/chunklock/models/entity/border_wall.geo.json"), "utf8")
+  )["minecraft:geometry"][0];
+  assert.equal(geometry.description.visible_bounds_width, 48);
+  assert.equal(geometry.description.visible_bounds_height, 128);
+  const cubes = geometry.bones[0].cubes;
   assert.equal(cubes.length, 4);
   for (const cube of cubes) {
-    assert.equal(cube.size[0], 256);
+    assert.equal(cube.origin[0], -128.05);
+    assert.equal(cube.origin[2], -0.05);
+    assert.equal(cube.size[0], 256.1);
     assert.ok(cube.size[1] <= 256);
-    assert.ok(cube.size[2] >= 2);
+    assert.equal(cube.size[2], 0.1);
     assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
   }
+  const material = JSON.parse(
+    fs.readFileSync(path.join(root, "resource_packs/chunklock/materials/entity.material"), "utf8")
+  ).materials["chunklock_border_wall:entity_alphablend"];
+  assert.ok(material["+states"].includes("DisableDepthWrite"));
+  const animation = JSON.parse(
+    fs.readFileSync(path.join(root, "resource_packs/chunklock/animations/border_wall.animation.json"), "utf8")
+  ).animations["animation.chunklock.border_wall.align"];
+  assert.match(animation.bones.wall.rotation[1], /query\.body_y_rotation/);
 });
 
 test("wall helpers breathe in terrain and use an unconditional damage sensor", () => {
@@ -328,6 +341,7 @@ test("wall helpers breathe in terrain and use an unconditional damage sensor", (
   const components = JSON.parse(fs.readFileSync(file, "utf8"))["minecraft:entity"].components;
   assert.equal(components["minecraft:breathable"].breathes_solids, true);
   assert.equal(components["minecraft:breathable"].breathes_water, true);
+  assert.ok(components["minecraft:body_rotation_axis_aligned"]);
   assert.ok(components["minecraft:health"].value >= 100);
   const sensor = components["minecraft:damage_sensor"].triggers[0];
   assert.equal(sensor.deals_damage, "no");

@@ -54,6 +54,8 @@ function makeHarness({ players = [], properties = {} } = {}) {
       location: { ...location },
       dynamicProperties,
       equipment,
+      commands: [],
+      runCommand: (command) => entity.commands.push(command),
       getDynamicProperty: (key) => dynamicProperties.get(key),
       setDynamicProperty: (key, value) => {
         if (value === undefined) dynamicProperties.delete(key);
@@ -189,6 +191,7 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
   assert.equal(display.equipment.get("Mainhand").typeId, "minecraft:oak_log");
+  assert.deepEqual(display.commands, ["replaceitem entity @s slot.weapon.mainhand 0 minecraft:oak_log 1"]);
 
   const tooFar = makeHarness({
     players: [makePlayer({ x: -9 })],
@@ -242,6 +245,7 @@ test("requirement display pack files define a compact helper with held-item rend
   assert.equal(components["minecraft:breathable"].breathes_water, true);
   assert.equal(components["minecraft:health"].value, 100);
   assert.equal(components["minecraft:damage_sensor"].triggers[0].deals_damage, "no");
+  assert.ok(components["minecraft:equipment"]);
   assert.ok(components["minecraft:equippable"].slots.length > 0);
   assert.equal(components["minecraft:nameable"].always_show, true);
 
@@ -250,12 +254,17 @@ test("requirement display pack files define a compact helper with held-item rend
   )["minecraft:client_entity"].description;
   assert.equal(client.enable_attachables, true);
   assert.equal(client.held_item_ignores_lighting, true);
+  assert.equal(client.animations.pose, "animation.chunklock.requirement_display.pose");
   assert.ok(client.render_controllers.includes("controller.render.chunklock.requirement_display"));
   const geometry = JSON.parse(
     fs.readFileSync(path.join(root, "resource_packs/chunklock/models/entity/requirement_display.geo.json"), "utf8")
   )["minecraft:geometry"][0];
   assert.equal(geometry.description.identifier, "geometry.chunklock.requirement_display");
-  assert.ok(geometry.bones.some((bone) => bone.name === "rightItem"));
+  const rootBone = geometry.bones.find((bone) => bone.name === "root");
+  const rightItemBone = geometry.bones.find((bone) => bone.name === "rightItem");
+  assert.ok(rootBone.cubes.length > 0, "pedestal cube keeps the display geometry non-empty");
+  assert.ok(rightItemBone);
+  assert.equal(rightItemBone.neverRender, undefined);
   const controller = JSON.parse(
     fs.readFileSync(
       path.join(root, "resource_packs/chunklock/render_controllers/requirement_display.render_controllers.json"),

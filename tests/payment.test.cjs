@@ -188,7 +188,8 @@ function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = 
   let displayRefreshes = 0;
   const walls = { refreshWalls: () => wallRefreshes++ };
   const displays = { refreshRequirementDisplays: () => displayRefreshes++ };
-  const payment = load("payment", api, { access, requirements, walls, displays });
+  const notices = load("notices", api);
+  const payment = load("payment", api, { access, notices, requirements, walls, displays });
   const target = {
     typeId: "chunklock:requirement_display",
     dimension,
@@ -207,12 +208,14 @@ function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = 
   return {
     access,
     activePlayers,
+    api,
     callbacks,
     click,
     dimension,
     displayRefreshes: () => displayRefreshes,
     flush,
     makePlayer,
+    notices,
     particles,
     payment,
     props,
@@ -391,6 +394,37 @@ test("failed progress persistence restores the full inventory payment", () => {
   assert.equal(itemAt(player, 1).amount, 4);
   assert.equal(savedRequirement(harness).remainingCost, 10);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), false);
+});
+
+test("payment notices hold the action bar across chunk refreshes before expiring", () => {
+  const harness = makeHarness();
+  const player = harness.activePlayers[0];
+  player.location = { x: 8, y: 64, z: 8 };
+  harness.dimension.getBlock = () => ({});
+  harness.dimension.getBiome = () => ({ id: "minecraft:plains" });
+  harness.world.getDynamicPropertyIds = () => [...harness.props.keys()];
+  const intervals = [];
+  harness.system.runInterval = (callback, ticks) => intervals.push({ callback, ticks });
+
+  const chunks = load("chunks", harness.api, {
+    notices: harness.notices,
+    requirements: harness.requirements,
+  });
+  chunks.startChunks();
+  harness.payment.startPayments();
+
+  harness.click();
+  harness.flush();
+  assert.match(player.actions.at(-1), /requires Oak Log × 10/);
+  assert.match(player.messages.at(-1), /requires Oak Log × 10/);
+
+  harness.system.currentTick += 10;
+  intervals[0].callback();
+  assert.match(player.actions.at(-1), /requires Oak Log × 10/, "chunk scan must not overwrite active payment notice");
+
+  harness.system.currentTick += 90;
+  intervals[0].callback();
+  assert.match(player.actions.at(-1), /^\[Chunklock prototype\]/, "prototype status resumes after notice expires");
 });
 
 test("unlock progress is dimension-aware and idempotent", () => {

@@ -27,7 +27,37 @@ write(BP / 'entities/border_wall.json', {
                                     'breathes_air': True, 'breathes_water': True,
                                     'breathes_solids': True, 'generates_bubbles': False},
             'minecraft:pushable': {'is_pushable': False, 'is_pushable_by_piston': False},
+            'minecraft:body_rotation_axis_aligned': {},
             'minecraft:fire_immune': {}, 'minecraft:persistent': {}
+        }
+    }
+})
+write(RP / 'materials/entity.material', {
+    'materials': {
+        'version': '1.0.0',
+        'chunklock_border_wall:entity_alphablend': {
+            '+states': [
+                'Blending',
+                'DisableDepthWrite',
+                'DisableAlphaWrite'
+            ]
+        }
+    }
+})
+write(RP / 'animations/border_wall.animation.json', {
+    'format_version': '1.8.0',
+    'animations': {
+        'animation.chunklock.border_wall.align': {
+            'loop': True,
+            'bones': {
+                'wall': {
+                    'rotation': [
+                        0,
+                        'math.round((query.body_y_rotation + query.head_y_rotation(0)) / 90) * 90 - query.body_y_rotation',
+                        0
+                    ]
+                }
+            }
         }
     }
 })
@@ -35,9 +65,11 @@ write(RP / 'entity/border_wall.entity.json', {
     'format_version': '1.10.0',
     'minecraft:client_entity': {'description': {
         'identifier': 'chunklock:border_wall',
-        'materials': {'default': 'entity_alphablend'},
+        'materials': {'default': 'chunklock_border_wall'},
         'textures': {'default': 'textures/entity/border_wall'},
         'geometry': {'default': 'geometry.chunklock.border_wall'},
+        'animations': {'align': 'animation.chunklock.border_wall.align'},
+        'scripts': {'animate': ['align']},
         'render_controllers': ['controller.render.chunklock.border_wall']
     }}
 })
@@ -48,16 +80,17 @@ write(RP / 'render_controllers/border_wall.render_controllers.json', {
         'textures': ['Texture.default'], 'ignore_lighting': True
     }}
 })
-# Exact tile edges avoid overlapping adjacent faces. Two-pixel thickness keeps
-# opposite translucent surfaces farther apart than the original subpixel slab.
+# Ultra-thin 0.1-unit depth with matching 0.05-unit corner extension closes
+# perpendicular corners seamlessly while keeping front/back faces distinct for
+# backface culling.
 write(RP / 'models/entity/border_wall.geo.json', {
     'format_version': '1.12.0',
     'minecraft:geometry': [{
         'description': {'identifier': 'geometry.chunklock.border_wall', 'texture_width': 16,
-                        'texture_height': 16, 'visible_bounds_width': 18,
-                        'visible_bounds_height': 66, 'visible_bounds_offset': [0, 32, 0]},
+                        'texture_height': 16, 'visible_bounds_width': 48,
+                        'visible_bounds_height': 128, 'visible_bounds_offset': [0, 32, 0]},
         'bones': [{'name': 'wall', 'pivot': [0, 0, 0], 'cubes': [{
-            'origin': [-128, tile * 256, -1], 'size': [256, 256, 2],
+            'origin': [-128.05, tile * 256, -0.05], 'size': [256.1, 256, 0.1],
             'uv': {face: {'uv': [0, 0], 'uv_size': [16, 16]}
                    for face in ['north', 'south']}
         } for tile in range(4)]}]
@@ -79,4 +112,4 @@ png += chunk(b'IDAT', zlib.compress(bytes(rows))) + chunk(b'IEND', b'')
 texture = RP / 'textures/entity/border_wall.png'
 texture.parent.mkdir(parents=True, exist_ok=True)
 texture.write_bytes(png)
-print('Generated wall behavior, client entity, geometry, render controller and RGBA texture.')
+print('Generated wall behavior, client entity, material, animation, geometry, render controller and RGBA texture.')

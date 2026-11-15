@@ -59,8 +59,17 @@ function updateDisplay(entity: Entity, candidate: DisplayCandidate) {
   if (entity.nameTag !== label) entity.nameTag = label;
   const equippable = entity.getComponent("minecraft:equippable");
   const held = equippable?.getEquipment(EquipmentSlot.Mainhand);
-  if (held?.typeId !== candidate.itemId) {
+  const equippedItem = entity.getDynamicProperty("chunklock:display:item");
+  if (held?.typeId !== candidate.itemId || equippedItem !== candidate.itemId) {
     equippable?.setEquipment(EquipmentSlot.Mainhand, new ItemStack(candidate.itemId, 1));
+    if (typeof entity.runCommand === "function") {
+      try {
+        entity.runCommand(`replaceitem entity @s slot.weapon.mainhand 0 ${candidate.itemId} 1`);
+      } catch {
+        /* Equippable component fallback already ran. */
+      }
+    }
+    entity.setDynamicProperty("chunklock:display:item", candidate.itemId);
   }
   const current = entity.location;
   if (

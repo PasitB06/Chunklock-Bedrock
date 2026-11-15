@@ -4,13 +4,21 @@
     "description": {
       "identifier": "chunklock:requirement_display",
       "materials": {
-        "default": "entity"
+        "default": "entity_alphatest"
       },
       "textures": {
         "default": "textures/entity/border_wall"
       },
       "geometry": {
         "default": "geometry.chunklock.requirement_display"
+      },
+      "animations": {
+        "pose": "animation.chunklock.requirement_display.pose"
+      },
+      "scripts": {
+        "animate": [
+          "pose"
+        ]
       },
       "render_controllers": [
         "controller.render.chunklock.requirement_display"

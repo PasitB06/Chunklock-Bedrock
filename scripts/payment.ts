@@ -11,6 +11,7 @@ import {
 } from "@minecraft/server";
 import { isOpenCell, unlockChunk } from "./access.js";
 import { refreshRequirementDisplays } from "./displays.js";
+import { clearActionNotice, showActionNotice } from "./notices.js";
 import {
   deleteChunkRequirement,
   formatItemDisplayName,
@@ -34,8 +35,9 @@ type PaymentEntry = PaymentSource & {
 };
 
 function actionBar(player: Player, message: string) {
+  showActionNotice(player, message);
   try {
-    player.onScreenDisplay.setActionBar(message);
+    player.sendMessage(message);
   } catch {
     /* The player may have left before the scheduled action runs. */
   }
@@ -304,5 +306,8 @@ export function startPayments() {
     const target = event.target;
     system.run(() => processClick(player, target));
   });
-  world.afterEvents.playerLeave.subscribe(({ playerId }) => cooldowns.delete(playerId));
+  world.afterEvents.playerLeave.subscribe(({ playerId }) => {
+    cooldowns.delete(playerId);
+    clearActionNotice(playerId);
+  });
 }

@@ -1,5 +1,6 @@
 import { Direction, Entity, Player, system, world } from "@minecraft/server";
 import { isLocked, isOpenCell } from "./access.js";
+import { clearActionNotice, showActionNotice } from "./notices.js";
 
 // Positive horizontal hitbox overlap makes a border-straddling mob accessible.
 function hasOpenHitbox(target: Entity): boolean {
@@ -34,6 +35,7 @@ function notify(player: Player) {
   if (system.currentTick - (notices.get(player.id) ?? -100) < 30) return;
   notices.set(player.id, system.currentTick);
   system.run(() => {
+    showActionNotice(player, "[Chunklock] This chunk is locked.");
     try {
       player.sendMessage("[Chunklock] This chunk is locked.");
     } catch {
@@ -97,5 +99,8 @@ export function startProtection() {
       event.getImpactedBlocks().filter((block) => !isLocked(block.dimension.id, block.location.x, block.location.z))
     );
   });
-  world.afterEvents.playerLeave.subscribe((event) => notices.delete(event.playerId));
+  world.afterEvents.playerLeave.subscribe((event) => {
+    notices.delete(event.playerId);
+    clearActionNotice(event.playerId);
+  });
 }

@@ -4,13 +4,21 @@
     "description": {
       "identifier": "chunklock:border_wall",
       "materials": {
-        "default": "entity_alphablend"
+        "default": "chunklock_border_wall"
       },
       "textures": {
         "default": "textures/entity/border_wall"
       },
       "geometry": {
         "default": "geometry.chunklock.border_wall"
+      },
+      "animations": {
+        "align": "animation.chunklock.border_wall.align"
+      },
+      "scripts": {
+        "animate": [
+          "align"
+        ]
       },
       "render_controllers": [
         "controller.render.chunklock.border_wall"

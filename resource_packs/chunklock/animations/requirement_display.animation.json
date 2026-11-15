@@ -1,0 +1,36 @@
+{
+  "format_version": "1.8.0",
+  "animations": {
+    "animation.chunklock.requirement_display.pose": {
+      "loop": true,
+      "bones": {
+        "root": {
+          "rotation": [
+            0,
+            "-query.body_y_rotation",
+            0
+          ]
+        },
+        "rightArm": {
+          "rotation": [
+            0,
+            "query.life_time * 60",
+            0
+          ]
+        },
+        "rightItem": {
+          "rotation": [
+            -90,
+            0,
+            0
+          ],
+          "position": [
+            0,
+            2,
+            0
+          ]
+        }
+      }
+    }
+  }
+}

@@ -38,6 +38,7 @@
         "is_pushable": false,
         "is_pushable_by_piston": false
       },
+      "minecraft:body_rotation_axis_aligned": {},
       "minecraft:fire_immune": {},
       "minecraft:persistent": {}
     }
