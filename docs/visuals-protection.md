@@ -81,3 +81,6 @@ This is new Bedrock combat policy, not a claim of exact Java parity. The Java `c
 Regression tests reproduce both previous failures and cover four border directions, diagonal overlap, exact boundary contact, wholly locked targets, and actual arrow crossings. These tests use a simulated API; the new boundary behavior still requires Minecraft gameplay verification after leaving and reopening the world. No resource restart is needed for these script-only changes.
 
 API reference: [Entity.getAABB](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/entity?view=minecraft-bedrock-stable#getaabb).
+## Darker blue wall appearance
+
+The procedural wall texture now uses RGBA `(25, 95, 220, 85)` (`#195FDC`, approximately 33% texture opacity), replacing `(45, 185, 255, 30)` (approximately 12%). This is a presentation-only change requested by the user. The same wall renderer consumes the regenerated texture; geometry, immunity, protection and persistent chunk state are unchanged. Actual blended opacity depends on visible surfaces and lighting. Fully restart Minecraft to reload the resource texture. The asset was regenerated and deployed; the new appearance has not yet been verified in Minecraft.

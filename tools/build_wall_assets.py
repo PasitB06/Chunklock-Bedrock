@@ -73,7 +73,7 @@ rows = bytearray()
 for y in range(16):
     rows.append(0)
     for x in range(16):
-        rows.extend((45, 185, 255, 30))
+        rows.extend((25, 95, 220, 85))
 png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', 16, 16, 8, 6, 0, 0, 0))
 png += chunk(b'IDAT', zlib.compress(bytes(rows))) + chunk(b'IEND', b'')
 texture = RP / 'textures/entity/border_wall.png'
