@@ -23,6 +23,7 @@ import { refreshWalls } from "./walls.js";
 const DISPLAY_TYPE = "chunklock:requirement_display";
 const COOLDOWN_TICKS = 5;
 const cooldowns = new Map<string, number>();
+const useSuppressedUntil = new Map<string, number>();
 let started = false;
 
 type PaymentSource =
@@ -296,9 +297,16 @@ function processClick(player: Player, target: Entity) {
 export function startPayments() {
   if (started) return;
   started = true;
+  world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
+    if (system.currentTick < (useSuppressedUntil.get(event.player.id) ?? 0)) event.cancel = true;
+  });
+  world.beforeEvents.itemUse.subscribe((event) => {
+    if (system.currentTick < (useSuppressedUntil.get(event.source.id) ?? 0)) event.cancel = true;
+  });
   world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
     if (event.target.typeId !== DISPLAY_TYPE) return;
     event.cancel = true;
+    useSuppressedUntil.set(event.player.id, system.currentTick + 10);
     const now = system.currentTick;
     if (now - (cooldowns.get(event.player.id) ?? -COOLDOWN_TICKS) < COOLDOWN_TICKS) return;
     cooldowns.set(event.player.id, now);
@@ -308,6 +316,7 @@ export function startPayments() {
   });
   world.afterEvents.playerLeave.subscribe(({ playerId }) => {
     cooldowns.delete(playerId);
+    useSuppressedUntil.delete(playerId);
     clearActionNotice(playerId);
   });
 }

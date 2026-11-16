@@ -144,6 +144,8 @@ function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = 
   const activePlayers = players ?? [makePlayer("player-1", inventory, offhand)];
   const world = {
     beforeEvents: {
+      playerInteractWithBlock: { subscribe: (fn) => { callbacks.block = fn; } },
+      itemUse: { subscribe: (fn) => { callbacks.use = fn; } },
       playerInteractWithEntity: {
         subscribe: (callback) => {
           callbacks.interact = callback;
@@ -439,4 +441,21 @@ test("unlock progress is dimension-aware and idempotent", () => {
   assert.equal(player.props.get("chunklock:progress:player:unlocked:total"), 2);
   assert.equal(player.props.get("chunklock:progress:player:unlocked:minecraft:overworld"), 1);
   assert.equal(player.props.get("chunklock:progress:player:unlocked:minecraft:nether"), 1);
+});
+
+test("a paid display click suppresses follow-through block and item use temporarily", () => {
+  const h = makeHarness();
+  h.payment.startPayments();
+  const player = h.activePlayers[0];
+  h.click(player);
+  const block = {player, cancel:false};
+  h.callbacks.block(block);
+  assert.equal(block.cancel, true);
+  const use = {source:player, cancel:false};
+  h.callbacks.use(use);
+  assert.equal(use.cancel, true);
+  h.api.system.currentTick += 11;
+  const later = {player, cancel:false};
+  h.callbacks.block(later);
+  assert.equal(later.cancel, false);
 });
