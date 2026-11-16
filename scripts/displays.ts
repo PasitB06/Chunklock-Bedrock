@@ -79,7 +79,7 @@ function updateDisplay(entity: Entity, candidate: DisplayCandidate) {
   ) {
     entity.teleport({ x: candidate.x, y: candidate.y, z: candidate.z });
   }
-  entity.setRotation({ x: 0, y: candidate.rotation });
+  entity.setRotation({ x: 0, y: 0 });
 }
 
 function candidateForEdge(dimension: Dimension, edge: WallEdge, player: Player): DisplayCandidate | undefined {

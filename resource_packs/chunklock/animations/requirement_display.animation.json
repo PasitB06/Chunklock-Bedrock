@@ -7,20 +7,20 @@
         "root": {
           "rotation": [
             0,
-            "-query.body_y_rotation",
+            0,
             0
           ]
         },
         "rightArm": {
           "rotation": [
             0,
-            -45,
+            0,
             0
           ]
         },
         "rightItem": {
           "rotation": [
-            -20,
+            0,
             0,
             0
           ],
