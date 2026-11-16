@@ -199,10 +199,8 @@ function finishUnlock(
     const dimensionName = formatDimensionDisplayName(dimension);
     const unlockOrder = getDimensionUnlockedCount(dimension);
     const playerName = typeof player.name === "string" && player.name.trim().length > 0 ? player.name : "A player";
-    showActionNotice(player, `Global ${dimensionName} chunk #${unlockOrder} unlocked.`);
-    broadcastGlobalNotice(
-      `${playerName} unlocked ${dimensionName} chunk #${unlockOrder} (Global: shared by all players).`
-    );
+    showActionNotice(player, `${dimensionName} chunk #${unlockOrder} unlocked.`);
+    broadcastGlobalNotice(`${playerName} unlocked ${dimensionName} chunk #${unlockOrder}.`);
     refreshAfterPayment(true);
     return true;
   } catch (error) {

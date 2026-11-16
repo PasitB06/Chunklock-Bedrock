@@ -49,7 +49,7 @@ export function formatGlobalJoinNotice(): string {
   const counts = TRACKED_DIMENSIONS.map(
     (dimensionId) => `${formatDimensionDisplayName(dimensionId)} #${getDimensionUnlockedCount(dimensionId)}`
   ).join(", ");
-  return `Chunklock is active (Global: all players share unlocked chunks). Progress — ${counts}.`;
+  return `Chunklock Global is active. Progress — ${counts}.`;
 }
 
 function counterUpdate(owner: Player | typeof world, propertyId: string): [() => void, () => void] {

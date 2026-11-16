@@ -281,8 +281,8 @@ test("one click pays across multiple inventory stacks with excess left in the la
   assert.equal(itemAt(harness.activePlayers[0], 0), undefined);
   assert.equal(itemAt(harness.activePlayers[0], 1), undefined);
   assert.equal(itemAt(harness.activePlayers[0], 2).amount, 14);
-  assert.equal(harness.activePlayers[0].actions.at(-1), "Global Overworld chunk #1 unlocked.");
-  assert.equal(harness.worldMessages.at(-1), "player-1 unlocked Overworld chunk #1 (Global: shared by all players).");
+  assert.equal(harness.activePlayers[0].actions.at(-1), "Overworld chunk #1 unlocked.");
+  assert.equal(harness.worldMessages.at(-1), "player-1 unlocked Overworld chunk #1.");
   assert.equal(harness.activePlayers[0].messages.length, 0);
   assert.equal(harness.activePlayers[0].titles.length, 0);
   assert.equal(harness.sounds.at(-1).id, "random.levelup");
@@ -484,13 +484,13 @@ test("unlock announcements number each dimension separately, use global chat and
   const harness = makeHarness({ remainingCost: 1, inventory: [new TestItemStack("minecraft:oak_log", 2)] });
   const player = harness.activePlayers[0];
   player.name = "Steve";
-  assert.match(harness.access.formatGlobalJoinNotice(), /Global: all players share unlocked chunks.*Overworld #0, Nether #0, The End #0/);
+  assert.match(harness.access.formatGlobalJoinNotice(), /Chunklock Global is active.*Overworld #0, Nether #0, The End #0/);
 
   harness.payment.startPayments();
   harness.click(player);
   harness.flush();
-  assert.equal(harness.worldMessages.at(-1), "Steve unlocked Overworld chunk #1 (Global: shared by all players).");
-  assert.equal(player.actions.at(-1), "Global Overworld chunk #1 unlocked.");
+  assert.equal(harness.worldMessages.at(-1), "Steve unlocked Overworld chunk #1.");
+  assert.equal(player.actions.at(-1), "Overworld chunk #1 unlocked.");
   assert.equal(player.titles.length, 0);
 
   harness.props.set("chunklock:cell:minecraft:nether:0:1", 1);
@@ -511,12 +511,12 @@ test("unlock announcements number each dimension separately, use global chat and
   harness.click(player, netherTarget);
   harness.flush();
 
-  assert.equal(harness.worldMessages.at(-1), "Steve unlocked Nether chunk #1 (Global: shared by all players).");
-  assert.equal(player.actions.at(-1), "Global Nether chunk #1 unlocked.");
+  assert.equal(harness.worldMessages.at(-1), "Steve unlocked Nether chunk #1.");
+  assert.equal(player.actions.at(-1), "Nether chunk #1 unlocked.");
   assert.equal(player.titles.length, 0);
   assert.equal(
     harness.access.formatGlobalJoinNotice(),
-    "Chunklock is active (Global: all players share unlocked chunks). Progress — Overworld #1, Nether #1, The End #0."
+    "Chunklock Global is active. Progress — Overworld #1, Nether #1, The End #0."
   );
 
   delete harness.world.sendMessage;
