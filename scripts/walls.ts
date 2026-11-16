@@ -4,7 +4,9 @@ import { chunkAt, wallEdges } from "./regions.js";
 
 const TYPE = "chunklock:border_wall";
 const MAX_WALLS = 384;
-const SPAWN_BUDGET = 12;
+const SPAWN_BUDGET = 16;
+const WALL_CHUNK_RADIUS = 5;
+const MAX_WALL_DISTANCE = 96;
 const ANCHOR_STEP = 32;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
@@ -77,13 +79,13 @@ export function refreshWalls() {
       const cx = chunkAt(player.location.x),
         cz = chunkAt(player.location.z);
       const cells = [];
-      for (let x = cx - 2; x <= cx + 2; x++)
-        for (let z = cz - 2; z <= cz + 2; z++) {
+      for (let x = cx - WALL_CHUNK_RADIUS; x <= cx + WALL_CHUNK_RADIUS; x++)
+        for (let z = cz - WALL_CHUNK_RADIUS; z <= cz + WALL_CHUNK_RADIUS; z++) {
           if (isOpenCell(dimension.id, x, z)) cells.push({ x, z });
         }
       for (const edge of wallEdges(cells, (x, z) => isOpenCell(dimension.id, x, z))) {
         const horizontalDistance = Math.hypot(edge.x - player.location.x, edge.z - player.location.z);
-        if (horizontalDistance > 40) continue;
+        if (horizontalDistance > MAX_WALL_DISTANCE) continue;
         const id = `v5:${edge.key}`;
         const wall = {
           dimension,
@@ -123,7 +125,14 @@ export function refreshWalls() {
       spawnBudget--;
     } catch (error) {
       if (entity) entity.remove();
-      if (error instanceof Error && error.name === "LocationOutOfWorldBoundariesError") continue;
+      if (
+        error instanceof Error &&
+        (error.name === "LocationOutOfWorldBoundariesError" ||
+          error.name === "LocationInUnloadedChunkError" ||
+          error.name === "UnloadedChunksError")
+      ) {
+        continue;
+      }
       // Resource/behavior load failures must be visible, rather than silently hidden.
       if (system.currentTick - failedAt >= 200) {
         console.warn(`[Chunklock] Could not create border wall: ${error}`);

@@ -285,6 +285,12 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
   assert.equal(drifting.lastTeleport.keepVelocity, false);
   load("walls", api).startWalls();
   assert.equal(player.dimension.getEntities().length, 4, "reload must adopt existing helpers");
+  props.set("chunklock:open:minecraft:overworld:4:0", true);
+  intervals[0]();
+  assert.ok(
+    player.dimension.getEntities().some((e) => e.location.x >= 64),
+    "distant open borders within 96 blocks must also receive walls"
+  );
   players = [];
   intervals[0]();
   assert.equal(player.dimension.getEntities().length, 0);
