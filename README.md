@@ -1,139 +1,135 @@
 # Chunklock Bedrock Add-On
 
-A TypeScript project for Minecraft Bedrock, using the behavior of a local Java Chunklock datapack as a development reference.
+A TypeScript add-on (`v1.0.0`) for **Minecraft Bedrock Edition** (`1.26.60+`) built strictly on stable `@minecraft/server` **2.6.0** APIs (no Beta APIs or Experiments required), using a local Java Chunklock datapack (`v2.1.0`) as the behavior reference.
 
-**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See prototype instructions (local reference: `docs/chunk-prototype.md`). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are implemented; see visuals and protection (local reference: `docs/visuals-protection.md`). All Java loot tables compile and roll in Bedrock TypeScript, and locked chunks persist biome-based requirements and source-scaled costs. Nearby requirement icons/counts, whole-inventory payment, a barrier test shortcut, and world/payer unlock totals are implemented. Validate display visibility, click targeting and item deduction in Minecraft.
+**Current status:** Core gameplay, border walls, requirement plaques, whole-inventory payment, dimension/respawn handling, central End island crystal exemptions, custom commands, scoreboard tracking, milestones, and 11-player Realms optimizations are implemented and verified by automated unit tests and build checks. Full end-to-end verification inside a live Minecraft Bedrock / Realms world remains to be completed by gameplay testing.
 
-This directory is the Git repository root. The Java reference is kept outside the repository at `../java_mod/data` and is not published to GitHub.
+> [!NOTE]
+> This directory (`bedrock_addon/`) is the Git repository root. Local reference documentation (`docs/`), AI/editor rules (`AGENTS.md`, `CONTEXT.md`), and the external Java reference (`../java_mod/data`) are intentionally excluded via `.gitignore` and are not published to GitHub.
 
-## Local documentation
+---
 
-Development documentation and AI/editor configuration are kept locally and excluded from Git. Never force-add these files; the exclusions in `.gitignore` apply to every commit and push. A fresh clone does not include these local references.
+## Key Features
 
-| Document | Purpose |
-| --- | --- |
-| Reference guide (local reference: `docs/reference/README.md`) | Explains the Java system and how its parts connect |
-| Domain glossary (local reference: `CONTEXT.md`) | Defines chunks, unlock requirements, payers and progress |
-| Bedrock mapping (local reference: `docs/reference/bedrock-porting.md`) | Maps responsibilities to future Bedrock work and records implementation status |
-| Flat icon plaques (local reference: `docs/flat-icon-plaques.md`) | Explains centered icons, Vanilla texture mapping and regeneration |
-| Loot requirements (local reference: `docs/loot-requirements.md`) | Explains loot compilation, per-chunk requirements, border displays, and inventory payment |
-| Agent rules (local reference: `AGENTS.md`) | Requires English-only writing, reference-based development and a commit/push for each completed capability |
+- **Global Shared Progression**:
+  - Unlocked chunks are shared globally across all players in the Overworld, Nether, and The End.
+  - Joining players receive a chat summary of Global mode and per-dimension unlock counts (`Chunklock Global is active. Progress — Overworld #N, Nether #N, The End #N.`).
+  - Paid unlocks broadcast `<Player> unlocked <Dimension> chunk #<Order>.` in global chat and hold `<Dimension> chunk #<Order> unlocked.` on the payer's action bar. Center-screen `setTitle`/`updateSubtitle` text is never used anywhere in the add-on.
+- **Border Walls & Vibrant Visuals (`RP 1.0.0`)**:
+  - Single-column translucent chunk borders (`border_wall`) placed around open terrain, with emissive PBR `border_wall_vibrant` (~5% opacity) when clients enable **Vibrant Visuals** (`deferred` mode).
+- **Loot Requirements & Inventory Payment**:
+  - All 151 compiled loot tables (`scripts/loot-tables-data.ts`) roll biome-aware item costs (`Y = 128` Overworld, `Y = 64` Nether/The End) scaled by difficulty and per-dimension unlock counts.
+  - Centered flat/shaped 3D requirement plaques (`chunklock:requirement_display`) sit `0.01` blocks inside open borders and accept right-click payments across the selected hotbar slot, main 36-slot inventory, and offhand (including partial payments, rollback protection, held-click follow-through suppression, and `minecraft:barrier` test unlocks).
+- **Protection, Dimension Transitions & The End Exemption**:
+  - Prevents walking, breaking, placing, interacting, melee/ranged combat into, and throwing projectiles/ender pearls across locked chunk borders.
+  - Central End island chunks within `<= 500` blocks without a `minecraft:ender_crystal` open automatically without unlock credit, while pillar crystal chunks and outer End islands (`> 500` blocks) stay locked with rolled requirements.
+  - `playerDimensionChange` auto-unlocks locked portal destinations (world credit only, with terrain-load retries) and `playerSpawn` resets death-site checkpoints on respawn.
+- **Custom Commands (`CustomCommandRegistry`)**:
+  - **All Players (works with cheats disabled)**:
+    - `/chunklock:reroll` — Rerolls the locked chunk requirement you are looking at within 9 blocks (`Easy` difficulty only).
+    - `/chunklock:status` — Shows current difficulty, global per-dimension unlocks, personal unlocks, and reroll count.
+  - **Operators / Admins (`GameDirectors`, cheats required)**:
+    - `/chunklock:difficulty <easy|normal|hard|impossible>` — Changes difficulty before the first chunk is unlocked and rescales existing pre-unlock requirements.
+    - `/chunklock:spreadplayers [radius] [minDistance]` — Spreads all players across the map (`500` / `200` defaults), opens landing chunks without credit, and sets spawn points.
+    - `/chunklock:reset confirm` — Clears all Chunklock dynamic properties, helper entities, scoreboard objective, and caches, then re-seeds online players.
+  - **Script Event**: `/scriptevent chunklock:debug` toggles prototype center flame particles and coordinate debug output.
+- **Scoreboard & Milestones**:
+  - Displays personal unlocked chunk totals under player names (`BelowName`) and on the pause-screen player list (`List`) using objective `chunklock:unlocked` (`"Chunks"`).
+  - Plays global/payer audio cues and credits at unlock milestones (`#1, #8, #16, #32, #64, #128`) and grants per-player first-dimension unlocks, `16..2048` count tiers, and all 9 item challenges (`stone`, `coal`, `iron_ingot`, `gold_ingot`, `emerald`, `diamond`, `pufferfish`, `nether_brick`, `ancient_debris`) via chat.
+- **11-Player Realms Performance Architecture**:
+  - Write-through RAM state cache (`scripts/state-cache.ts`), shared per-tick `Player2D` snapshots, unioned open-cell edge scanning, fair round-robin quotas (`MAX_WALLS = 264`, `MAX_DISPLAYS = 110`), staggered 10-tick presentation refreshes, 60-tick excluded-type projectile scans, and 0.25-block dirty-flag checkpoint serialization throttling.
 
-All repository documentation, comments, authored messages and commit messages must be written in English.
+---
 
-## Getting started
+## Installation (Players & Realms)
 
-Open this directory in VS Code, then run:
+1. Download `chunklock-1.0.0.mcaddon` (from GitHub Releases) or build `dist/packages/chunklock.mcaddon` locally.
+2. Double-click the `.mcaddon` file to import both **Chunklock Behavior (`1.0.0`)** and **Chunklock Resources (`1.0.0`)** into Minecraft Bedrock.
+3. In **Create New World** or **Edit World**:
+   - Activate **Chunklock Behavior** under **Behavior Packs** — Minecraft automatically activates **Chunklock Resources** via its manifest dependency.
+   - No **Beta APIs** or experimental toggles are required.
+   - To use Vibrant Visuals wall transparency, enable **Settings → Video → Graphics Mode → Vibrant Visuals** on supported hardware.
+
+> [!TIP]
+> Avoid mixing imported `.mcaddon` packs with local `development_*_packs\chunklock` folders on the same machine, as duplicate pack UUIDs can trigger a pack-load warning on world entry.
+
+---
+
+## Development & Verification
+
+Use `npm.cmd` in PowerShell to avoid script execution-policy issues with `npm.ps1`.
 
 ```powershell
 npm.cmd ci
 npm.cmd run local-deploy
 ```
 
-Use `npm.cmd` in PowerShell to avoid execution-policy restrictions on `npm.ps1`.
-Dependencies are already installed on the original development machine; use `npm.cmd ci` when installing again or cloning elsewhere.
-
-## Testing in Minecraft
-
-1. Open **Minecraft for Windows / Bedrock** and create a new Creative test world.
-2. Activate **Chunklock Behavior** under **Behavior Packs -> My Packs / Available**.
-3. Confirm that **Chunklock Resources** is also active. The behavior pack declares this dependency.
-4. Enter the world and look for `Bedrock add-on is ready.` in chat.
-5. Wait for nearby locked chunk borders and their requirement item/count labels. Right-click the centered item display with no matching item, then with matching items split across several inventory slots (including offhand) to check feedback and payment. The selected hotbar slot is consumed first; matching items are deducted from the inventory and offhand as needed, even in Creative mode. A barrier in the selected hand unlocks for testing and is preserved.
-
-The starter pins stable Script API `@minecraft/server` **2.6.0** and declares a minimum Bedrock version of **1.26.60**.
-Chunklock Resources declares the `pbr` capability for Vibrant Visuals compatibility. After updating, restart Minecraft and select **Settings -> Video -> Graphics Mode -> Vibrant Visuals** on a supported device. Other active resource packs must also be compatible. Border transparency and requirement icons still require in-game verification in this graphics mode.
-
-It does not require Beta APIs or Experiments. Restart Minecraft if newly deployed packs are not listed.
-Building and copying files does not prove gameplay works; the readiness message must be checked in a world.
-
-## Development commands
-
 | Task | Command |
 | --- | --- |
-| Check script style | `npm.cmd run lint` |
-| Build | `npm.cmd run build` |
-| Build and deploy once | `npm.cmd run local-deploy` |
-| Watch and deploy changes | `npm.cmd run dev` |
-| Create an importable add-on | `npm.cmd run mcaddon` |
-| Create a production add-on | `npm.cmd run mcaddon:production` |
-| Check documentation without Java source | `python tools/check_docs.py` |
-| Check generated reference docs against local Java source | `python tools/reference_docs.py --check` |
-| Compile local Java loot tables | `python tools/build_loot_tables.py` |
-| Check compiled loot data is current | `python tools/build_loot_tables.py --check` |
+| Check ESLint + Prettier formatting | `npm.cmd run lint` |
+| Run Node behavior test suite (`69` tests) | `npm.cmd test` |
+| Run Python loot-table compiler tests (`4` tests) | `python -m unittest discover -s tests -p "test_*.py"` |
+| Build TypeScript & bundle (`dist/scripts/main.js`) | `npm.cmd run build` |
+| Build & deploy to Minecraft development folders | `npm.cmd run local-deploy` |
+| Watch mode build & deploy | `npm.cmd run dev` |
+| Package `.mcaddon` (`dist/packages/chunklock.mcaddon`) | `npm.cmd run mcaddon` |
+| Package production `.mcaddon` | `npm.cmd run mcaddon:production` |
+| Verify display plaque assets | `python tools/build_display_assets.py --check` |
+| Verify compiled 151 loot tables against local reference | `python tools/build_loot_tables.py --check` |
+| Verify local docs & links (standalone safe) | `python tools/check_docs.py` |
+| Verify generated Java reference docs | `python tools/reference_docs.py --check` |
 
-Watch mode handles TypeScript, JSON, lang and PNG changes. Stop it with Ctrl+C.
-After script changes, save and leave the world, then re-enter it; `/reload` is another option if commands are enabled.
-Some resource changes may require restarting the game.
+After script changes via `local-deploy`, leave and re-enter the world (or run `/reload all` when cheats are enabled). Resource Pack texture/model/manifest updates require a full Minecraft restart.
 
-The importable file is `dist/packages/chunklock.mcaddon`. Double-click it to import it into Minecraft.
-For local development, prefer `local-deploy` to avoid duplicate imported and development copies of the same pack.
+---
 
-## Layout
+## Repository Layout
 
 ```text
-scripts/main.ts                        Script entry point
-behavior_packs/chunklock/manifest.json   Pack identity, version and Script API dependency
-resource_packs/chunklock/manifest.json   Resource pack for future textures, audio and models
-docs/reference/                        Behavior reference, file catalog and porting status
-tools/                                 Reference generation and documentation checks
-.env                                   Pack directory name and Minecraft target
-just.config.ts                         Build, deployment and packaging tasks
-.vscode/                               Editor tasks and debugger configuration
-dist/                                  Regenerable build output; excluded from Git
+behavior_packs/chunklock/    Behavior Pack manifest (1.0.0) and helper entity definitions
+resource_packs/chunklock/    Resource Pack manifest (1.0.0), textures, PBR sets, models, materials
+scripts/
+  main.ts                    Entry point, staggered startup, join summary
+  access.ts                  Persistent open-cell access, world/player counters, join formatter
+  state-cache.ts             Write-through RAM caches and per-tick Player2D snapshots
+  regions.ts                 Floor chunk math, union open-cell edge scans, swept intersections
+  end.ts                     Central End island crystal-exemption check (radius <= 500)
+  chunks.ts                  Bounded chunk discovery and biome/loot requirement assignment
+  loot.ts & loot-tables-data.ts  151 compiled loot tables, item/biome resolvers, cost scaling
+  requirements.ts            Per-chunk JSON cost persistence, difficulty rescaling, rerolls
+  displays.ts & display-icons-data.ts  Requirement plaque entity reconciliation and icon catalog
+  walls.ts & wall-diagnostics.ts  Border wall entity reconciliation and debug diagnostics
+  payment.ts & notices.ts    Whole-inventory payment, click suppression, action-bar & global chat
+  commands.ts                Custom slash commands (reroll, status, difficulty, spreadplayers, reset)
+  progress.ts                BelowName/List scoreboard and global/personal unlock milestones
+  collision.ts               Per-tick pullback, dimension arrival auto-unlock, respawn safety
+  protection.ts              Block/interaction/combat protection inside locked cells
+  projectiles.ts             Projectile & ender pearl border interception
+tests/                       Automated Node behavior tests (*.test.cjs) and Python compiler tests
+tools/                       Wall/display asset generators, loot-table compiler, doc/reference checks
+just.config.ts               Build, local-deploy and .mcaddon packaging tasks
+.env                         Pack name and target Minecraft product (BedrockGDK / PreviewGDK)
 ```
 
-Edit source files in this repository. Deployment replaces generated files in Minecraft's development directories.
-Keep existing UUIDs when updating the same pack and increment pack versions before distributing updates.
-The Java source directory, dependencies and generated outputs must never be added to this repository.
+---
 
-## Minecraft deployment paths
+## Minecraft Deployment Paths
 
-The default `.env` selects `MINECRAFT_PRODUCT="BedrockGDK"` for the regular Bedrock installation:
+The default `.env` targets `MINECRAFT_PRODUCT="BedrockGDK"` on Windows:
 
 ```text
 %APPDATA%\Minecraft Bedrock\users\shared\games\com.mojang\development_behavior_packs\chunklock
 %APPDATA%\Minecraft Bedrock\users\shared\games\com.mojang\development_resource_packs\chunklock
 ```
 
-Use `PreviewGDK` for Preview. For a custom installation, select `Custom` and set `CUSTOM_DEPLOYMENT_PATH`
-to the intended `com.mojang` directory, not to a world directory.
+Set `MINECRAFT_PRODUCT="PreviewGDK"` for Preview or `Custom` + `CUSTOM_DEPLOYMENT_PATH` for a custom `com.mojang` directory.
 
-## Logs and debugging
+Enable **Settings → Creator → Content Log** in Minecraft to inspect runtime errors, or connect the VS Code debugger to port `19144` via `/script debugger connect localhost 19144`.
 
-Enable **Settings -> Creator -> Content Log** in Minecraft to inspect add-on errors.
-Recommended VS Code extensions are Blockception Bedrock Development, Minecraft Debugger and Prettier.
-The **Debug with Minecraft** configuration listens on port 19144.
+---
 
-Deploy the pack, open a test world with command permissions, start the debugger in VS Code and run:
+## Credits & Upstream
 
-```text
-/script debugger connect localhost 19144
-```
-
-The configuration is prepared; an actual debugger connection still needs to be verified in a running world.
-
-## Java reference availability
-
-The published English reference documents cover 275 local Java data files and 626 extracted resource references.
-Source paths in those documents are identifiers for local reference material, not links to files hosted in this repository.
-To regenerate or compare them, provide `../java_mod/data` or set `CHUNKLOCK_JAVA_REFERENCE` to the reference data directory.
-`python tools/check_docs.py` works in a standalone clone without Java files.
-
-## Upstream and toolchain
-
-The project adapts Microsoft's TypeScript starter. Attribution and licensing are recorded in
-[THIRD_PARTY.md](THIRD_PARTY.md) and `LICENSE.microsoft-samples`.
-The local Java reference credits AvidMc and Quillbee; Microsoft's sample license does not cover that datapack.
-
-The development toolchain uses dependency overrides for patched Vitest, Tinypool and Minimatch versions.
-`package-lock.json` records the installed versions. The original machine uses Node.js 26.7.0;
-use a supported Node.js LTS release for another development machine.
-
-- [Minecraft Creator documentation](https://learn.microsoft.com/en-us/minecraft/creator/?view=minecraft-bedrock-stable)
-- [Add-on development and folder locations](https://learn.microsoft.com/en-us/minecraft/creator/documents/gettingstarted?view=minecraft-bedrock-stable)
-- [TypeScript scripting guide](https://learn.microsoft.com/en-us/minecraft/creator/documents/scripting/next-steps?view=minecraft-bedrock-stable)
-- [Script API reference](https://learn.microsoft.com/en-us/minecraft/creator/scriptapi/minecraft/server/minecraft-server?view=minecraft-bedrock-stable)
-- [Microsoft starter](https://github.com/microsoft/minecraft-scripting-samples/tree/main/ts-starter)
-
-Repository: [PasitB06/Chunklock-Bedrock](https://github.com/PasitB06/Chunklock-Bedrock).
+- Adapts Microsoft's TypeScript starter ([THIRD_PARTY.md](THIRD_PARTY.md), `LICENSE.microsoft-samples`).
+- Chunklock gameplay concept and Java datapack reference by **AvidMc** and **Quillbee**.
+- Repository: [PasitB06/Chunklock-Bedrock](https://github.com/PasitB06/Chunklock-Bedrock).
