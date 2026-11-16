@@ -193,7 +193,7 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
   assert.equal(display.properties.get("chunklock:display_yaw"), 90);
-  assert.equal(display.properties.get("chunklock:display_icon"), load("display-icons-data").DISPLAY_ICON_INDEX["minecraft:oak_log"]);
+  assert.equal(display.properties.get("chunklock:display_icon_v2"), load("display-icons-data").DISPLAY_ICON_INDEX["minecraft:oak_log"]);
   assert.deepEqual(display.rotation, { x: 0, y: 90 });
   assert.equal(display.equipment.size, 0);
   assert.deepEqual(display.commands, []);
@@ -241,7 +241,7 @@ test("flat icon catalog covers source items and selects matching texture indices
   const icons = load("display-icons-data");
   const root = path.join(__dirname, "..");
   const client = JSON.parse(fs.readFileSync(path.join(root, "resource_packs/chunklock/entity/requirement_display.entity.json"), "utf8"))["minecraft:client_entity"].description;
-  const controller = JSON.parse(fs.readFileSync(path.join(root, "resource_packs/chunklock/render_controllers/requirement_display.render_controllers.json"), "utf8")).render_controllers["controller.render.chunklock.requirement_display"];
+  const controller = JSON.parse(fs.readFileSync(path.join(root, "resource_packs/chunklock/render_controllers/requirement_display.render_controllers.json"), "utf8")).render_controllers["controller.render.chunklock.requirement_display_v2"];
   const tables = load("loot-tables-data").LOOT_TABLES;
   for (const table of Object.values(tables)) {
     for (const pool of table.pools) for (const entry of pool.entries) {
@@ -256,7 +256,8 @@ test("flat icon catalog covers source items and selects matching texture indices
     assert.equal(client.textures[controller.arrays.textures["Array.icons"][index].replace("Texture.", "")], expected);
   }
   assert.equal(icons.displayIconIndex("other:unknown"), 0);
-  assert.equal(icons.displayIconIndex("minecraft:grass"), icons.displayIconIndex("minecraft:short_grass"));
+  assert.ok(icons.displayIconIndex("minecraft:grass") > 0);
+  assert.ok(icons.displayIconIndex("minecraft:short_grass") > 0);
   assert.equal(client.enable_attachables, undefined);
 });
 
@@ -264,7 +265,7 @@ test("plaques are horizontally centered, wall-parallel and have no held-item ske
   const root = path.join(__dirname, "..");
   const read = (name) => JSON.parse(fs.readFileSync(path.join(root, name), "utf8"));
   const behavior = read("behavior_packs/chunklock/entities/requirement_display.json")["minecraft:entity"];
-  assert.equal(behavior.description.properties["chunklock:display_icon"].client_sync, true);
+  assert.equal(behavior.description.properties["chunklock:display_icon_v2"].client_sync, true);
   assert.equal(behavior.components["minecraft:equipment"], undefined);
   assert.equal(behavior.components["minecraft:equippable"], undefined);
   assert.deepEqual(behavior.components["minecraft:collision_box"], { width: 0.35, height: 0.35 });
@@ -291,11 +292,11 @@ test("icon changes refresh the picture and unknown requirements retain their lab
   const next = {...makeRequirement(3), itemId: "minecraft:lilac"};
   harness.props.set("chunklock:req:minecraft:overworld:1:0", JSON.stringify(next));
   harness.displays.refreshRequirementDisplays();
-  assert.equal(entity.properties.get("chunklock:display_icon"), load("display-icons-data").displayIconIndex(next.itemId));
+  assert.equal(entity.properties.get("chunklock:display_icon_v2"), load("display-icons-data").displayIconIndex(next.itemId));
   next.itemId = "custom:unknown";
   harness.props.set("chunklock:req:minecraft:overworld:1:0", JSON.stringify(next));
   harness.displays.refreshRequirementDisplays();
-  assert.equal(entity.properties.get("chunklock:display_icon"), 0);
+  assert.equal(entity.properties.get("chunklock:display_icon_v2"), 0);
   assert.equal(entity.nameTag, "Unknown\n× 3");
   assert.deepEqual(entity.commands, []);
 });
@@ -311,7 +312,7 @@ test("plaque migration replaces old helpers without changing requirements or acc
   harness.displays.startRequirementDisplays();
   assert.equal(old.removed, true);
   assert.equal(harness.entities.length, 1);
-  assert.ok(harness.entities[0].getDynamicProperty("chunklock:display_key").startsWith("plaque1:"));
+  assert.ok(harness.entities[0].getDynamicProperty("chunklock:display_key").startsWith("plaque2:"));
   assert.equal(harness.props.get("chunklock:req:minecraft:overworld:1:0"), stored);
   assert.equal(harness.props.get("chunklock:open:minecraft:overworld:0:0"), true);
 });
@@ -330,4 +331,11 @@ test("plaques stay on the open side with correct cardinal yaw on all four bounda
     assert.ok(entity.location.z > 0 && entity.location.z < 16);
     assert.equal(entity.equipment.size, 0);
   }
+});
+
+test("each catalog item has its own index independent of shared texture paths", () => {
+  const icons = load("display-icons-data");
+  const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, "../tools/display-icon-catalog.json"), "utf8"));
+  const indices = Object.keys(catalog.items).map(item => icons.DISPLAY_ICON_INDEX[item]);
+  assert.equal(new Set(indices).size, indices.length);
 });

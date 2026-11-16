@@ -28,7 +28,7 @@ type DisplayCandidate = {
   remainingCost: number;
 };
 
-const candidateKey = (edge: WallEdge) => `plaque1:${edge.key}:${edge.lockedCell.x}:${edge.lockedCell.z}`;
+const candidateKey = (edge: WallEdge) => `plaque2:${edge.key}:${edge.lockedCell.x}:${edge.lockedCell.z}`;
 
 function positionOnOpenSide(edge: WallEdge): { x: number; z: number } {
   if (edge.side === "north") return { x: edge.x, z: edge.z + OPEN_SIDE_OFFSET };
@@ -58,7 +58,7 @@ function updateDisplay(entity: Entity, candidate: DisplayCandidate) {
   entity.setDynamicProperty("chunklock:display:cz", candidate.lockedZ);
   const label = `${formatItemDisplayName(candidate.itemId)}\n× ${candidate.remainingCost}`;
   if (entity.nameTag !== label) entity.nameTag = label;
-  entity.setProperty("chunklock:display_icon", displayIconIndex(candidate.itemId));
+  entity.setProperty("chunklock:display_icon_v2", displayIconIndex(candidate.itemId));
   const current = entity.location;
   if (
     Math.abs(current.x - candidate.x) > 0.01 ||
