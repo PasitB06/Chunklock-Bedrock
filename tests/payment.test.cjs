@@ -284,7 +284,7 @@ test("one click pays across multiple inventory stacks with excess left in the la
   assert.equal(harness.activePlayers[0].actions.at(-1), "Overworld chunk #1 unlocked.");
   assert.equal(harness.worldMessages[0], "player-1 unlocked Overworld chunk #1.");
   assert.equal(harness.worldMessages[1], "Chunklock concept by AvidMc and Quillbee.");
-  assert.equal(harness.activePlayers[0].titles[0], "First Chunk Unlocked!");
+  assert.equal(harness.activePlayers[0].titles.length, 0);
   assert.equal(harness.sounds.at(-1).id, "random.levelup");
   assert.equal(harness.sounds.at(-1).options.pitch, 1);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), true);
@@ -492,7 +492,7 @@ test("unlock announcements number each dimension separately, use global chat and
   assert.equal(harness.worldMessages[0], "Steve unlocked Overworld chunk #1.");
   assert.equal(harness.worldMessages[1], "Chunklock concept by AvidMc and Quillbee.");
   assert.equal(player.actions.at(-1), "Overworld chunk #1 unlocked.");
-  assert.equal(player.titles.length, 1);
+  assert.equal(player.titles.length, 0);
 
   harness.props.set("chunklock:cell:minecraft:nether:0:1", 1);
   harness.props.set("chunklock:req:minecraft:nether:0:1", JSON.stringify(makeRequirement(1)));
@@ -514,7 +514,7 @@ test("unlock announcements number each dimension separately, use global chat and
 
   assert.equal(harness.worldMessages.at(-1), "Steve unlocked Nether chunk #1.");
   assert.equal(player.actions.at(-1), "Nether chunk #1 unlocked.");
-  assert.equal(player.titles.length, 1, "non-milestone unlock #2 must not trigger a new center-screen title");
+  assert.equal(player.titles.length, 0, "center-screen titles must never be displayed");
   assert.equal(
     harness.access.formatGlobalJoinNotice(),
     "Chunklock Global is active. Progress — Overworld #1, Nether #1, The End #0."

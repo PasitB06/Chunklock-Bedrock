@@ -13,7 +13,6 @@ import {
 } from "@minecraft/server";
 import {
   getDimensionUnlockedCount,
-  getHideUnlockTitle,
   getPlayerRerolledCount,
   getPlayerUnlockedCount,
   getTotalUnlockedCount,
@@ -22,7 +21,6 @@ import {
   openExemptChunk,
   recordReroll,
   seedPlayer,
-  setHideUnlockTitle,
 } from "./access.js";
 import { resetCollisionCheckpoints } from "./collision.js";
 import { refreshRequirementDisplays } from "./displays.js";
@@ -42,7 +40,6 @@ import { hasCellRecord, invalidateStateCache } from "./state-cache.js";
 import { refreshWalls } from "./walls.js";
 
 const DIFFICULTY_ENUM = "chunklock:difficulty_level";
-const TITLE_ENUM = "chunklock:title_visibility";
 const RESET_ENUM = "chunklock:reset_action";
 const DIMENSION_IDS = ["minecraft:overworld", "minecraft:nether", "minecraft:the_end"] as const;
 const HELPER_TYPES = ["chunklock:border_wall", "chunklock:requirement_display"] as const;
@@ -135,20 +132,6 @@ function handleReroll(origin: CustomCommandOrigin): CustomCommandResult {
     recordReroll(player);
     safeRefreshPresentation();
     const message = `Rerolled chunk (${target.cx}, ${target.cz}) to ${formatItemDisplayName(updated.itemId)} × ${updated.remainingCost}.`;
-    showActionNotice(player, message);
-    player.sendMessage(message);
-  });
-  return success();
-}
-
-function handleTitles(origin: CustomCommandOrigin, mode?: string): CustomCommandResult {
-  const player = resolvePlayer(origin);
-  if (!player) return failure("This command must be run by a player.");
-
-  const hidden = mode === "hide" ? true : mode === "show" ? false : !getHideUnlockTitle(player);
-  system.run(() => {
-    setHideUnlockTitle(player, hidden);
-    const message = hidden ? "Unlock titles are now hidden." : "Unlock titles are now shown.";
     showActionNotice(player, message);
     player.sendMessage(message);
   });
@@ -294,7 +277,6 @@ function handleReset(_origin: CustomCommandOrigin, confirmation: string): Custom
  */
 export function registerChunklockCommands(customCommandRegistry: CustomCommandRegistry) {
   customCommandRegistry.registerEnum(DIFFICULTY_ENUM, ["easy", "normal", "hard", "impossible"]);
-  customCommandRegistry.registerEnum(TITLE_ENUM, ["show", "hide"]);
   customCommandRegistry.registerEnum(RESET_ENUM, ["confirm"]);
 
   customCommandRegistry.registerCommand(
@@ -305,17 +287,6 @@ export function registerChunklockCommands(customCommandRegistry: CustomCommandRe
       cheatsRequired: false,
     },
     (origin) => handleReroll(origin)
-  );
-
-  customCommandRegistry.registerCommand(
-    {
-      name: "chunklock:titles",
-      description: "Show or hide center-screen milestone unlock titles for yourself.",
-      permissionLevel: CommandPermissionLevel.Any,
-      cheatsRequired: false,
-      optionalParameters: [{ name: TITLE_ENUM, type: CustomCommandParamType.Enum }],
-    },
-    (origin, mode?: string) => handleTitles(origin, mode)
   );
 
   customCommandRegistry.registerCommand(

@@ -1,10 +1,5 @@
 import { DisplaySlotId, ObjectiveSortOrder, Player, ScoreboardObjective, world } from "@minecraft/server";
-import {
-  getHideUnlockTitle,
-  getPlayerDimensionUnlockedCount,
-  getPlayerUnlockedCount,
-  getTotalUnlockedCount,
-} from "./access.js";
+import { getPlayerDimensionUnlockedCount, getPlayerUnlockedCount, getTotalUnlockedCount } from "./access.js";
 import { broadcastGlobalNotice } from "./notices.js";
 
 export const SCOREBOARD_OBJECTIVE_ID = "chunklock:unlocked";
@@ -182,11 +177,8 @@ function triggerGlobalMilestone(player: Player, totalUnlocked: number) {
 
   if (tier.creditNotice) broadcastGlobalNotice(tier.creditNotice);
 
-  const playerName = typeof player.name === "string" && player.name.trim().length > 0 ? player.name : "A player";
-  const title = totalUnlocked === 1 ? "First Chunk Unlocked!" : `Chunk #${totalUnlocked} Unlocked!`;
-  const subtitle = `By ${playerName}`;
+  // Never show center-screen titles (`setTitle`/`updateSubtitle`); milestone feedback uses audio and chat only.
   const recipients = tier.scope === "all" ? world.getAllPlayers() : [player];
-
   for (const recipient of recipients) {
     try {
       if (typeof recipient.playSound === "function") {
@@ -194,17 +186,6 @@ function triggerGlobalMilestone(player: Player, totalUnlocked: number) {
       }
     } catch {
       /* Ignore audio feedback errors during disconnect. */
-    }
-    if (getHideUnlockTitle(recipient)) continue;
-    try {
-      recipient.onScreenDisplay.setTitle?.(title, {
-        fadeInDuration: 10,
-        stayDuration: 50,
-        fadeOutDuration: 10,
-        subtitle,
-      });
-    } catch {
-      /* Ignore HUD title errors when player UI is unavailable. */
     }
   }
 }

@@ -128,47 +128,55 @@ test("startProgress configures BelowName and List scoreboard slots and syncs on 
   assert.equal(objective.scores.get("p2"), 7);
 });
 
-test("global milestones fire at 1, 8, 16, 32, 64, 128 and respect hide_unlock_title", () => {
+test("global milestones fire sounds and #1 credit at 1, 8, 16, 32, 64, 128 without center-screen titles", () => {
   const h = makeProgressHarness();
   h.progress.startProgress();
-  h.access.setHideUnlockTitle(h.p2, true);
 
-  // Unlock #1 -> everyone hears toast + AvidMc/Quillbee credit; only p1 sees title because p2 hid titles.
+  // Unlock #1 -> everyone hears toast + AvidMc/Quillbee credit; zero center-screen titles.
   h.worldProps.set("chunklock:progress:unlocked:total", 1);
   h.progress.handlePaidUnlockProgress(h.p1, "minecraft:overworld");
   assert.equal(h.worldMessages[0], "Chunklock concept by AvidMc and Quillbee.");
-  assert.equal(h.p1.titles.at(-1).title, "First Chunk Unlocked!");
-  assert.equal(h.p1.sounds.at(-1).id, "ui.toast.challenge_complete");
+  assert.equal(h.p1.titles.length, 0);
   assert.equal(h.p2.titles.length, 0);
+  assert.equal(h.p1.sounds.at(-1).id, "ui.toast.challenge_complete");
   assert.equal(h.p2.sounds.at(-1).id, "ui.toast.challenge_complete");
 
-  // Unlock #5 -> no milestone title or sound.
+  // Unlock #5 -> no milestone sound or title.
   h.worldProps.set("chunklock:progress:unlocked:total", 5);
   h.progress.handlePaidUnlockProgress(h.p1, "minecraft:overworld");
-  assert.equal(h.p1.titles.length, 1);
+  assert.equal(h.p1.sounds.length, 1);
 
-  // Unlock #8 -> payer-only milestone title + levelup sound.
+  // Unlock #8 & #16 -> payer-only milestone sound, zero titles.
   const p2SoundsBefore = h.p2.sounds.length;
   h.worldProps.set("chunklock:progress:unlocked:total", 8);
   h.progress.handlePaidUnlockProgress(h.p1, "minecraft:overworld");
-  assert.equal(h.p1.titles.at(-1).title, "Chunk #8 Unlocked!");
   assert.equal(h.p1.sounds.at(-1).id, "random.levelup");
+  assert.equal(h.p1.titles.length, 0);
   assert.equal(h.p2.sounds.length, p2SoundsBefore);
 
-  // Unlock #16 -> payer-only milestone title.
   h.worldProps.set("chunklock:progress:unlocked:total", 16);
   h.progress.handlePaidUnlockProgress(h.p1, "minecraft:overworld");
-  assert.equal(h.p1.titles.at(-1).title, "Chunk #16 Unlocked!");
+  assert.equal(h.p1.sounds.at(-1).id, "random.levelup");
+  assert.equal(h.p1.titles.length, 0);
   assert.equal(h.p2.sounds.length, p2SoundsBefore);
 
-  // Unlock #32, #64, #128 -> global titles & toast sounds.
-  h.access.setHideUnlockTitle(h.p2, false);
+  // Unlock #32, #64, #128 -> global toast sounds, zero titles.
   for (const total of [32, 64, 128]) {
     h.worldProps.set("chunklock:progress:unlocked:total", total);
     h.progress.handlePaidUnlockProgress(h.p1, "minecraft:overworld");
-    assert.equal(h.p1.titles.at(-1).title, `Chunk #${total} Unlocked!`);
-    assert.equal(h.p2.titles.at(-1).title, `Chunk #${total} Unlocked!`);
+    assert.equal(h.p1.titles.length, 0);
+    assert.equal(h.p2.titles.length, 0);
     assert.equal(h.p2.sounds.at(-1).id, "ui.toast.challenge_complete");
+  }
+});
+
+test("no script file ever invokes center-screen titles or subtitles", () => {
+  const scriptsDir = path.join(__dirname, "../scripts");
+  for (const file of fs.readdirSync(scriptsDir)) {
+    if (!file.endsWith(".ts")) continue;
+    const source = fs.readFileSync(path.join(scriptsDir, file), "utf8");
+    const stripped = source.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
+    assert.equal(/\b(setTitle|updateSubtitle)\s*\(/.test(stripped), false, `${file} must never display center-screen titles`);
   }
 });
 

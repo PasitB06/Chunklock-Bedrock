@@ -70,20 +70,6 @@ export function getPlayerRerolledCount(player: Player): number {
 }
 
 /**
- * Reads whether milestone center-screen unlock titles are hidden for `player`.
- */
-export function getHideUnlockTitle(player: Player): boolean {
-  return player.getDynamicProperty("chunklock:hide_unlock_title") === true;
-}
-
-/**
- * Sets whether milestone center-screen unlock titles are hidden for `player`.
- */
-export function setHideUnlockTitle(player: Player, hidden: boolean) {
-  player.setDynamicProperty("chunklock:hide_unlock_title", hidden ? true : undefined);
-}
-
-/**
  * Formats a dimension ID (for example `minecraft:the_end`) for player-facing notices.
  */
 export function formatDimensionDisplayName(dimensionId: string): string {

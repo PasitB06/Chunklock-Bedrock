@@ -193,10 +193,10 @@ function makeCommandHarness() {
 test("commands register with proper permissions, cheatsRequired flags and enums", () => {
   const h = makeCommandHarness();
   assert.deepEqual([...h.enums.get("chunklock:difficulty_level")], ["easy", "normal", "hard", "impossible"]);
-  assert.deepEqual([...h.enums.get("chunklock:title_visibility")], ["show", "hide"]);
+  assert.equal(h.registered.has("chunklock:titles"), false, "center-screen title commands must not exist");
   assert.deepEqual([...h.enums.get("chunklock:reset_action")], ["confirm"]);
 
-  for (const playerCmd of ["chunklock:reroll", "chunklock:titles", "chunklock:status"]) {
+  for (const playerCmd of ["chunklock:reroll", "chunklock:status"]) {
     const def = h.registered.get(playerCmd).definition;
     assert.equal(def.permissionLevel, h.api.CommandPermissionLevel.Any);
     assert.equal(def.cheatsRequired, false);
@@ -235,7 +235,7 @@ test("reroll works only on Easy, targets looked-at locked chunk, and increments 
   assert.ok(h.displayRefreshes() >= 2);
 });
 
-test("difficulty locks after first unlock, status summarizes counts and titles toggles preference", () => {
+test("difficulty locks after first unlock and status summarizes counts", () => {
   const h = makeCommandHarness();
   const player = h.players[0];
   h.props.set("chunklock:cell:minecraft:overworld:1:0", 1);
@@ -245,12 +245,6 @@ test("difficulty locks after first unlock, status summarizes counts and titles t
   assert.equal(hardRes.status, h.api.CustomCommandStatus.Success);
   assert.equal(h.requirements.getChunkRequirement("minecraft:overworld", 1, 0).remainingCost, 8);
   assert.equal(h.worldMessages.at(-1), "Chunklock difficulty set to Hard.");
-
-  assert.equal(h.access.getHideUnlockTitle(player), false);
-  h.invoke("chunklock:titles", { sourceEntity: player });
-  assert.equal(h.access.getHideUnlockTitle(player), true);
-  h.invoke("chunklock:titles", { sourceEntity: player }, "show");
-  assert.equal(h.access.getHideUnlockTitle(player), false);
 
   h.access.unlockChunk(player, "minecraft:overworld", 1, 0);
   const blocked = h.invoke("chunklock:difficulty", { sourceEntity: player }, "easy");
@@ -278,14 +272,14 @@ test("spreadplayers opens landing chunks without credit and reset wipes all Chun
   assert.ok(h.resetCollisionCalls() >= 1);
 
   h.props.set("chunklock:progress:unlocked:total", 5);
-  player.setDynamicProperty("chunklock:hide_unlock_title", true);
+  player.setDynamicProperty("chunklock:milestones", '["first_overworld"]');
   const resetFail = h.invoke("chunklock:reset", { sourceEntity: player }, "nope");
   assert.equal(resetFail.status, h.api.CustomCommandStatus.Failure);
 
   const resetOk = h.invoke("chunklock:reset", { sourceEntity: player }, "confirm");
   assert.equal(resetOk.status, h.api.CustomCommandStatus.Success);
   assert.equal(h.props.has("chunklock:progress:unlocked:total"), false);
-  assert.equal(player.getDynamicProperty("chunklock:hide_unlock_title"), undefined);
+  assert.equal(player.getDynamicProperty("chunklock:milestones"), undefined);
   assert.ok(h.removedEntities.includes("border_wall"));
   assert.ok(h.removedEntities.includes("requirement_display"));
   assert.deepEqual([...h.removedObjectives], ["chunklock:unlocked"]);
