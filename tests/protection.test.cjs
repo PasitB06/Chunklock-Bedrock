@@ -257,6 +257,7 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
   assert.equal(player.dimension.getEntities().length, 4, "one full-column helper per border edge");
   const initialIds = player.dimension.getEntities().map((e) => e.getDynamicProperty("chunklock:wall_key"));
   player.location.y = 120;
+  api.system.currentTick += 10;
   intervals[0]();
   assert.equal(player.dimension.getEntities().length, 4);
   assert.deepEqual(
@@ -265,6 +266,7 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
     "ascending must retain every border wall"
   );
   player.location.y = 400;
+  api.system.currentTick += 10;
   intervals[0]();
   assert.equal(player.dimension.getEntities().length, 4);
   assert.ok(
@@ -272,13 +274,15 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
     "anchors must stay strictly within dimension height bounds"
   );
   player.location.y = 64;
+  api.system.currentTick += 10;
   intervals[0]();
   const drifting = player.dimension.getEntities()[0];
   const anchor = { ...drifting.location };
   drifting.location = { x: anchor.x, y: anchor.y + 0.2, z: anchor.z };
   drifting.velocity = { x: 0, y: 0.1, z: 0 };
-  assert.equal(typeof intervals[1], "function", "a lightweight per-tick anchor pass is scheduled");
-  intervals[1]();
+  assert.equal(intervals.length, 1, "wall updates must not schedule a separate 1-tick loop");
+  api.system.currentTick += 10;
+  intervals[0]();
   assert.deepEqual(drifting.location, anchor);
   assert.deepEqual(drifting.velocity, { x: 0, y: 0, z: 0 });
   assert.equal(drifting.lastTeleport.checkForBlocks, false);
@@ -286,12 +290,22 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
   load("walls", api).startWalls();
   assert.equal(player.dimension.getEntities().length, 4, "reload must adopt existing helpers");
   props.set("chunklock:open:minecraft:overworld:4:0", true);
+  api.system.currentTick += 10;
   intervals[0]();
   assert.ok(
     player.dimension.getEntities().some((e) => e.location.x >= 64),
-    "distant open borders within 96 blocks must also receive walls"
+    "open borders within 4-chunk simulation radius (64 blocks) must receive walls"
+  );
+  props.set("chunklock:open:minecraft:overworld:6:0", true);
+  api.system.currentTick += 10;
+  intervals[0]();
+  assert.equal(
+    player.dimension.getEntities().some((e) => e.location.x >= 96),
+    false,
+    "borders beyond the 68-block Realms simulation radius must not spawn"
   );
   players = [];
+  api.system.currentTick += 10;
   intervals[0]();
   assert.equal(player.dimension.getEntities().length, 0);
 });
@@ -445,10 +459,11 @@ test("projectiles can reach exposed border hitboxes before crossing locked terra
   const api = {
     world: {
       afterEvents: { entitySpawn: { subscribe: (fn) => (spawn = fn) } },
-      getAllPlayers: () => [],
+      getAllPlayers: () => [{ dimension: { id: "minecraft:overworld" }, location: { x: 8, y: 64, z: 8 } }],
       getDynamicProperty: (key) => (key.endsWith(":0:0") ? true : undefined),
     },
     system: {
+      currentTick: 10,
       runInterval: (fn, n) => {
         if (n === 1) tick = fn;
       },
@@ -512,7 +527,8 @@ test("collision allows free movement within open chunks and teleports back on lo
       runInterval: (fn) => intervals.push(fn),
     },
   };
-  load("collision", api).startCollision();
+  const moduleCache = {};
+  load("collision", api, moduleCache).startCollision();
   const tick = intervals[0];
   assert.equal(teleports.length, 0, "seeding at center must not teleport");
 
@@ -532,7 +548,7 @@ test("collision allows free movement within open chunks and teleports back on lo
   assert.deepEqual(teleports[0].rotation, { x: 10, y: 135 }, "current viewing rotation must be retained");
 
   // Negative open chunk (-1, 0) allows movement up to -0.1 and blocks -16.1.
-  props.set("chunklock:open:minecraft:overworld:-1:0", true);
+  load("access", api, moduleCache).unlockChunk(player, "minecraft:overworld", -1, 0);
   player.location = { x: -0.2, y: 64, z: 4.5 };
   api.system.currentTick = 4;
   tick();
@@ -577,4 +593,106 @@ test("deferred walls provide emissive PBR without replacing the classic texture"
   assert.equal(textureSet["minecraft:texture_set"].color, "border_wall_vibrant");
   assert.deepEqual(textureSet["minecraft:texture_set"].metalness_emissive_roughness_subsurface, [0, 255, 255, 0]);
   assert.equal(fs.existsSync(path.join(root, "border_wall.texture_set.json")), false);
+});
+
+test("11 spread players share wall budget fairly and steady-state checks avoid dynamic property reads", () => {
+  const props = new Map();
+  let propertyReads = 0;
+  const entities = [];
+  const intervals = [];
+  const dimension = {
+    id: "minecraft:overworld",
+    heightRange: { min: -64, max: 320 },
+    getEntities: () => entities.filter((e) => e.alive),
+    spawnEntity: (_type, location) => {
+      const state = new Map();
+      const e = {
+        alive: true,
+        location: { ...location },
+        getVelocity: () => ({ x: 0, y: 0, z: 0 }),
+        clearVelocity: () => {},
+        teleport: (next) => (e.location = { ...next }),
+        setRotation: () => {},
+        setProperty: (k, v) => state.set(k, v),
+        setDynamicProperty: (k, v) => state.set(k, v),
+        getDynamicProperty: (k) => state.get(k),
+        remove: () => (e.alive = false),
+      };
+      entities.push(e);
+      return e;
+    },
+  };
+  const players = Array.from({ length: 11 }, (_, i) => {
+    const playerProps = new Map([[`chunklock:seeded_visuals:minecraft:overworld`, true]]);
+    const cx = i * 20;
+    props.set(`chunklock:open:minecraft:overworld:${cx}:0`, true);
+    return {
+      id: `p-${i}`,
+      dimension,
+      location: { x: cx * 16 + 8, y: 64, z: 8 },
+      getDynamicProperty: (k) => playerProps.get(k),
+      setDynamicProperty: (k, v) => playerProps.set(k, v),
+      sendMessage: () => {},
+    };
+  });
+  const api = {
+    world: {
+      getAllPlayers: () => players,
+      getDimension: () => dimension,
+      getDynamicPropertyIds: () => [...props.keys()],
+      getDynamicProperty: (k) => {
+        propertyReads++;
+        return props.get(k);
+      },
+      setDynamicProperty: (k, v) => props.set(k, v),
+    },
+    system: { currentTick: 10, runInterval: (fn) => intervals.push(fn) },
+  };
+
+  load("walls", api).startWalls();
+  const initialReads = propertyReads;
+  assert.equal(entities.filter((e) => e.alive).length, 16, "first tick uses full spawn budget");
+  const representedPlayers = new Set(entities.map((e) => Math.round(Math.floor(e.location.x / 16) / 20)));
+  assert.ok(representedPlayers.size >= 10, "round-robin ranking spawns walls across spread players");
+
+  api.system.currentTick += 10;
+  intervals[0]();
+  assert.equal(propertyReads, initialReads, "steady-state refresh reads zero world dynamic properties");
+});
+
+test("projectiles stay tracked across large vertical gaps and drop beyond 96 horizontal blocks", () => {
+  let spawn;
+  let tick;
+  let removed = 0;
+  const players = [{ dimension: { id: "minecraft:overworld" }, location: { x: 8, y: -50, z: 8 } }];
+  const api = {
+    world: {
+      afterEvents: { entitySpawn: { subscribe: (fn) => (spawn = fn) } },
+      getAllPlayers: () => players,
+      getDynamicPropertyIds: () => ["chunklock:open:minecraft:overworld:0:0"],
+      getDynamicProperty: (key) => (key.endsWith(":0:0") ? true : undefined),
+    },
+    system: {
+      currentTick: 10,
+      runInterval: (fn, n) => {
+        if (n === 1) tick = fn;
+      },
+    },
+  };
+  load("projectiles", api).startProjectiles();
+  const highArrow = {
+    id: "high",
+    location: { x: 15, y: 200, z: 8 },
+    getComponent: () => ({}),
+    getVelocity: () => ({ x: 2, y: 0, z: 0 }),
+    dimension: { id: "minecraft:overworld" },
+    remove: () => removed++,
+  };
+  spawn({ entity: highArrow });
+  tick();
+  assert.equal(removed, 0);
+  highArrow.location = { x: 17, y: 200, z: 8 };
+  api.system.currentTick = 11;
+  tick();
+  assert.equal(removed, 1, "2D horizontal tracking keeps high-altitude arrows covered");
 });

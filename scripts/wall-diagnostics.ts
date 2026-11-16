@@ -1,4 +1,5 @@
 import { system, world } from "@minecraft/server";
+import { isDebugEnabled, setDebugEnabled } from "./state-cache.js";
 
 // Read-only diagnostics distinguish real entity deaths from client pose changes.
 export function startWallDiagnostics() {
@@ -6,6 +7,7 @@ export function startWallDiagnostics() {
   let previousIds = "";
   for (const delay of [200, 400])
     system.runTimeout(() => {
+      if (!isDebugEnabled()) return;
       const walls = ["overworld", "nether", "the_end"].flatMap((name) =>
         world.getDimension(name).getEntities({ type: "chunklock:border_wall" })
       );
@@ -22,12 +24,28 @@ export function startWallDiagnostics() {
     if (event.deadEntity.typeId !== "chunklock:border_wall") return;
     const report = `[Chunklock wall] Entity died: ${event.damageSource.cause}`;
     console.warn(report);
-    if (system.currentTick - lastReport >= 40) {
+    if (isDebugEnabled() && system.currentTick - lastReport >= 40) {
       for (const player of world.getAllPlayers()) player.sendMessage(report);
       lastReport = system.currentTick;
     }
   });
   system.afterEvents.scriptEventReceive.subscribe((event) => {
+    if (event.id === "chunklock:debug") {
+      const normalized = event.message.trim().toLowerCase();
+      const next = normalized === "on" ? true : normalized === "off" ? false : !isDebugEnabled();
+      setDebugEnabled(next);
+      const status = `[Chunklock] Debug mode ${next ? "enabled" : "disabled"}.`;
+      if (event.sourceEntity) {
+        try {
+          (event.sourceEntity as { sendMessage?: (m: string) => void }).sendMessage?.(status);
+        } catch {
+          for (const player of world.getAllPlayers()) player.sendMessage(status);
+        }
+      } else {
+        for (const player of world.getAllPlayers()) player.sendMessage(status);
+      }
+      return;
+    }
     if (event.id !== "chunklock:wall_debug") return;
     for (const name of ["overworld", "nether", "the_end"]) {
       const dimension = world.getDimension(name);

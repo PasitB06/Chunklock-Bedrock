@@ -41,6 +41,26 @@ export function wallEdges(cells: Cell[], isOpen: (x: number, z: number) => boole
   return [...edges.values()];
 }
 
+export function collectUnionOpenCells(
+  centers: readonly Cell[],
+  radius: number,
+  isOpen: (x: number, z: number) => boolean
+): Cell[] {
+  const seen = new Set<string>();
+  const cells: Cell[] = [];
+  for (const center of centers) {
+    for (let x = center.x - radius; x <= center.x + radius; x++) {
+      for (let z = center.z - radius; z <= center.z + radius; z++) {
+        const key = `${x}:${z}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (isOpen(x, z)) cells.push({ x, z });
+      }
+    }
+  }
+  return cells;
+}
+
 // Supercover grid traversal: also test both cells touched at diagonal corners.
 export function segmentTouchesLocked(from: Cell, to: Cell, locked: (x: number, z: number) => boolean): boolean {
   let x = chunkAt(from.x),

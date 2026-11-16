@@ -398,3 +398,30 @@ test("chunk scan initializes at most eight new requirements per interval and bac
   const secondInterval = [...harness.props.keys()].filter((key) => key.startsWith("chunklock:req:")).length;
   assert.equal(secondInterval, 15, "remaining locked records are backfilled on later intervals");
 });
+
+test("chunk scan uses dimension 2D lookup plane at high altitude and disables prototype spam by default", () => {
+  const harness = makeRequirementHarness();
+  const blockQueries = [];
+  const actions = [];
+  let particles = 0;
+  harness.dimension.getBlock = (loc) => {
+    blockQueries.push({ ...loc });
+    return {};
+  };
+  harness.dimension.spawnParticle = () => {
+    particles++;
+  };
+  harness.players.push({
+    dimension: harness.dimension,
+    location: { x: 8, y: 400, z: 8 },
+    onScreenDisplay: { setActionBar: (msg) => actions.push(msg) },
+  });
+  const intervals = [];
+  harness.loadChunks({ currentTick: 10, runInterval: (callback, ticks) => intervals.push({ callback, ticks }) });
+
+  intervals[0].callback();
+  assert.ok(blockQueries.length > 0);
+  assert.ok(blockQueries.every((loc) => loc.y === 128), "Overworld chunk checks use fixed Y=128 plane");
+  assert.equal(particles, 0, "debug flame particles are off by default");
+  assert.equal(actions.length, 0, "prototype action bar is off by default");
+});

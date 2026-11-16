@@ -384,3 +384,41 @@ test("shaped block requirements use explicit models rather than square face swat
   assert.equal(icons.displayShape("minecraft:stick"), 0);
   assert.equal(icons.displayShape("other:unknown"), 0);
 });
+
+test("display updates skip redundant property and vertical teleport writes inside the 0.2 deadband", () => {
+  const player = makePlayer({ y: 64 });
+  const harness = makeHarness({
+    players: [player],
+    properties: {
+      "chunklock:open:minecraft:overworld:0:0": true,
+      "chunklock:req:minecraft:overworld:1:0": JSON.stringify(makeRequirement()),
+    },
+  });
+  harness.displays.startRequirementDisplays();
+  const entity = harness.entities[0];
+  let propertyWrites = 0;
+  let teleports = 0;
+  const origSetProp = entity.setProperty;
+  const origTeleport = entity.teleport;
+  entity.setProperty = (...args) => {
+    propertyWrites++;
+    return origSetProp(...args);
+  };
+  entity.teleport = (...args) => {
+    teleports++;
+    return origTeleport(...args);
+  };
+
+  player.getHeadLocation = () => ({ x: player.location.x, y: player.location.y + 1.62, z: player.location.z });
+  player.location.y = 64.1;
+  harness.system.currentTick += 10;
+  harness.displays.refreshRequirementDisplays();
+  assert.equal(propertyWrites, 0);
+  assert.equal(teleports, 0);
+
+  player.location.y = 64.5;
+  harness.system.currentTick += 10;
+  harness.displays.refreshRequirementDisplays();
+  assert.equal(propertyWrites, 0);
+  assert.equal(teleports, 1);
+});

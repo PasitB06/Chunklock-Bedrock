@@ -11,12 +11,12 @@ import { startPayments } from "./payment.js";
 startProtection();
 system.run(() => {
   startWallDiagnostics();
-  startWalls();
-  startRequirementDisplays();
-  startPayments();
   startCollision();
-  startChunks();
+  startPayments();
   startProjectiles();
+  startChunks();
+  system.runTimeout(startWalls, 3);
+  system.runTimeout(startRequirementDisplays, 6);
 });
 
 // A small smoke check: each player sees this once when joining the world.

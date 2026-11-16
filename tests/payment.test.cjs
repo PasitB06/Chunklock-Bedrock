@@ -408,10 +408,13 @@ test("payment notices hold the action bar across chunk refreshes before expiring
   const intervals = [];
   harness.system.runInterval = (callback, ticks) => intervals.push({ callback, ticks });
 
+  const cache = {};
   const chunks = load("chunks", harness.api, {
     notices: harness.notices,
     requirements: harness.requirements,
-  });
+  }, cache);
+  const stateCache = load("state-cache", harness.api, {}, cache);
+  stateCache.setDebugEnabled(true);
   chunks.startChunks();
   harness.payment.startPayments();
 

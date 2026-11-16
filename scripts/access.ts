@@ -1,9 +1,9 @@
 import { Player, world } from "@minecraft/server";
 import { chunkAt } from "./regions.js";
+import { isOpenCached, isPlayerSeededCached, markOpenCached, markPlayerSeededCached } from "./state-cache.js";
 
 const key = (dimension: string, x: number, z: number) => `chunklock:open:${dimension}:${x}:${z}`;
-export const isOpenCell = (dimension: string, x: number, z: number) =>
-  world.getDynamicProperty(key(dimension, x, z)) === true;
+export const isOpenCell = (dimension: string, x: number, z: number) => isOpenCached(dimension, x, z);
 export const isLocked = (dimension: string, x: number, z: number) => !isOpenCell(dimension, chunkAt(x), chunkAt(z));
 
 function readCount(owner: Player | typeof world, propertyId: string): number {
@@ -19,7 +19,7 @@ function counterUpdate(owner: Player | typeof world, propertyId: string): [() =>
 
 export function unlockChunk(player: Player, dimension: string, x: number, z: number): boolean {
   const openProperty = key(dimension, x, z);
-  if (world.getDynamicProperty(openProperty) === true) return false;
+  if (isOpenCached(dimension, x, z)) return false;
 
   const updates = [
     counterUpdate(world, `chunklock:progress:unlocked:${dimension}`),
@@ -34,6 +34,7 @@ export function unlockChunk(player: Player, dimension: string, x: number, z: num
       applied.push(rollback);
     }
     world.setDynamicProperty(openProperty, true);
+    markOpenCached(dimension, x, z);
     return true;
   } catch (error) {
     for (const rollback of applied.reverse()) {
@@ -49,8 +50,17 @@ export function unlockChunk(player: Player, dimension: string, x: number, z: num
 
 // Existing marker records remain unchanged. Access is a separate persistent layer.
 export function seedPlayer(player: Player) {
-  const id = `chunklock:seeded_visuals:${player.dimension.id}`;
-  if (player.getDynamicProperty(id) === true) return;
-  world.setDynamicProperty(key(player.dimension.id, chunkAt(player.location.x), chunkAt(player.location.z)), true);
+  const dimensionId = player.dimension.id;
+  if (typeof player.id === "string" && isPlayerSeededCached(player.id, dimensionId)) return;
+  const id = `chunklock:seeded_visuals:${dimensionId}`;
+  if (player.getDynamicProperty(id) === true) {
+    if (typeof player.id === "string") markPlayerSeededCached(player.id, dimensionId);
+    return;
+  }
+  const cx = chunkAt(player.location.x);
+  const cz = chunkAt(player.location.z);
+  world.setDynamicProperty(key(dimensionId, cx, cz), true);
+  markOpenCached(dimensionId, cx, cz);
   player.setDynamicProperty(id, true);
+  if (typeof player.id === "string") markPlayerSeededCached(player.id, dimensionId);
 }

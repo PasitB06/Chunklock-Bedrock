@@ -1,8 +1,14 @@
 import { Dimension, world } from "@minecraft/server";
 import { isOpenCell } from "./access.js";
 import { calculateRemainingCost, resolveBedrockItemId, resolveBiomeTable, rollLootTable } from "./loot.js";
+import {
+  deleteRequirementCached,
+  getRequirementCached,
+  hasCellRecord,
+  lookupPlaneY,
+  setRequirementCached,
+} from "./state-cache.js";
 
-const CELL_PREFIX = "chunklock:cell:";
 const REQUIREMENT_PREFIX = "chunklock:req:";
 const DEFAULT_DIFFICULTY = 2;
 const DEFAULT_UNLOCKED_COUNT = 0;
@@ -26,14 +32,8 @@ export const requirementPropertyId = (dimensionId: string, cx: number, cz: numbe
   `${REQUIREMENT_PREFIX}${dimensionId}:${cx}:${cz}`;
 
 export function getChunkRequirement(dimensionId: string, cx: number, cz: number): ChunkRequirement | undefined {
-  const stored = world.getDynamicProperty(requirementPropertyId(dimensionId, cx, cz));
-  if (typeof stored !== "string") return undefined;
-  try {
-    const value: unknown = JSON.parse(stored);
-    return isValidRequirement(value) ? value : undefined;
-  } catch {
-    return undefined;
-  }
+  const cached = getRequirementCached(dimensionId, cx, cz, isValidRequirement);
+  return cached.state === "present" ? cached.value : undefined;
 }
 
 export function setChunkRequirementRemainingCost(
@@ -45,17 +45,17 @@ export function setChunkRequirementRemainingCost(
   if (!Number.isSafeInteger(remainingCost) || remainingCost < 0) return false;
   const requirement = getChunkRequirement(dimensionId, cx, cz);
   if (!requirement) return false;
-  world.setDynamicProperty(
-    requirementPropertyId(dimensionId, cx, cz),
-    JSON.stringify({ ...requirement, remainingCost })
-  );
+  const next = { ...requirement, remainingCost };
+  world.setDynamicProperty(requirementPropertyId(dimensionId, cx, cz), JSON.stringify(next));
+  setRequirementCached(dimensionId, cx, cz, next);
   return true;
 }
 
 export function deleteChunkRequirement(dimensionId: string, cx: number, cz: number): boolean {
-  const propertyId = requirementPropertyId(dimensionId, cx, cz);
-  if (world.getDynamicProperty(propertyId) === undefined) return false;
-  world.setDynamicProperty(propertyId, undefined);
+  const cached = getRequirementCached(dimensionId, cx, cz, isValidRequirement);
+  if (cached.state === "absent") return false;
+  world.setDynamicProperty(requirementPropertyId(dimensionId, cx, cz), undefined);
+  deleteRequirementCached(dimensionId, cx, cz);
   return true;
 }
 
@@ -66,10 +66,6 @@ export function formatItemDisplayName(itemId: string): string {
     .filter((word) => word.length > 0)
     .map((word) => word[0].toUpperCase() + word.slice(1))
     .join(" ");
-}
-
-function cellPropertyId(dimensionId: string, cx: number, cz: number) {
-  return `${CELL_PREFIX}${dimensionId}:${cx}:${cz}`;
 }
 
 function isValidRequirement(value: unknown): value is ChunkRequirement {
@@ -91,22 +87,6 @@ function isValidRequirement(value: unknown): value is ChunkRequirement {
   );
 }
 
-function lookupBiomeY(dimensionId: string): number {
-  const dimensionKey = dimensionId.startsWith("minecraft:") ? dimensionId.slice("minecraft:".length) : dimensionId;
-  return dimensionKey === "overworld" ? 128 : 64;
-}
-
-function readStoredRequirement(propertyId: string): EnsureRequirementResult | undefined {
-  const value = world.getDynamicProperty(propertyId);
-  if (value === undefined) return undefined;
-  if (typeof value !== "string") return "deferred";
-  try {
-    return isValidRequirement(JSON.parse(value)) ? "existing" : "deferred";
-  } catch {
-    return "deferred";
-  }
-}
-
 function readDifficulty(): 1 | 2 | 3 | 4 {
   const value = world.getDynamicProperty("chunklock:difficulty");
   return VALID_DIFFICULTIES.includes(value as number) ? (value as 1 | 2 | 3 | 4) : DEFAULT_DIFFICULTY;
@@ -119,15 +99,16 @@ function readUnlockedCount(dimensionId: string): number {
 
 export function ensureChunkRequirement(dimension: Dimension, cx: number, cz: number): EnsureRequirementResult {
   const dimensionId = dimension.id;
-  if (world.getDynamicProperty(cellPropertyId(dimensionId, cx, cz)) === undefined) return "skipped";
+  if (!hasCellRecord(dimensionId, cx, cz)) return "skipped";
   if (isOpenCell(dimensionId, cx, cz)) return "skipped";
 
-  const propertyId = requirementPropertyId(dimensionId, cx, cz);
-  const stored = readStoredRequirement(propertyId);
-  if (stored !== undefined) return stored;
+  const cached = getRequirementCached(dimensionId, cx, cz, isValidRequirement);
+  if (cached.state === "present") return "existing";
+  if (cached.state === "corrupt") return "deferred";
 
+  const propertyId = requirementPropertyId(dimensionId, cx, cz);
   try {
-    const biomeId = dimension.getBiome({ x: cx * 16 + 8, y: lookupBiomeY(dimensionId), z: cz * 16 + 8 }).id;
+    const biomeId = dimension.getBiome({ x: cx * 16 + 8, y: lookupPlaneY(dimensionId), z: cz * 16 + 8 }).id;
     const tableId = resolveBiomeTable(biomeId);
     const rolled = rollLootTable(tableId);
     const item = resolveBedrockItemId(rolled.sourceItemId);
@@ -146,6 +127,7 @@ export function ensureChunkRequirement(dimension: Dimension, cx: number, cz: num
       difficulty,
     };
     world.setDynamicProperty(propertyId, JSON.stringify(requirement));
+    setRequirementCached(dimensionId, cx, cz, requirement);
     return "created";
   } catch {
     return "deferred";

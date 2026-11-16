@@ -1,5 +1,6 @@
 import { GameMode, Player, Vector3, system, world } from "@minecraft/server";
 import { isLocked, seedPlayer } from "./access.js";
+import { getOpenCellCoords } from "./state-cache.js";
 
 const SAFE_POSITIONS_PROPERTY = "chunklock:collision:safe_positions";
 const PERSIST_INTERVAL = 20;
@@ -80,20 +81,13 @@ function findFallback(player: Player): SafePosition | undefined {
     };
   }
 
-  const prefix = `chunklock:open:${dimension.id}:`;
   const current = player.location;
   const startHeight = Math.max(
     dimension.heightRange.min,
     Math.min(Math.floor(current.y), dimension.heightRange.max - 1)
   );
-  const candidates = world
-    .getDynamicPropertyIds()
-    .filter((id) => id.startsWith(prefix) && world.getDynamicProperty(id) === true)
-    .map((id) => {
-      const [cx, cz] = id.slice(prefix.length).split(":").map(Number);
-      return { cx, cz, distance: Math.hypot(cx * 16 + 8 - current.x, cz * 16 + 8 - current.z) };
-    })
-    .filter(({ cx, cz, distance }) => Number.isInteger(cx) && Number.isInteger(cz) && Number.isFinite(distance))
+  const candidates = getOpenCellCoords(dimension.id)
+    .map(({ cx, cz }) => ({ cx, cz, distance: Math.hypot(cx * 16 + 8 - current.x, cz * 16 + 8 - current.z) }))
     .sort((a, b) => a.distance - b.distance);
 
   for (const { cx, cz } of candidates) {
@@ -140,7 +134,9 @@ function returnPlayer(player: Player, position: SafePosition) {
 function checkPlayers() {
   const online = new Set<string>();
   const currentTick = system.currentTick;
-  for (const player of world.getAllPlayers()) {
+  const players = world.getAllPlayers();
+  for (let index = 0; index < players.length; index++) {
+    const player = players[index];
     online.add(player.id);
     seedPlayer(player);
 
@@ -163,7 +159,7 @@ function checkPlayers() {
       }
     }
 
-    if (currentTick % PERSIST_INTERVAL === 0) persist(player, positions);
+    if ((currentTick + index) % PERSIST_INTERVAL === 0) persist(player, positions);
   }
 
   for (const playerId of previousSafePositions.keys()) {
