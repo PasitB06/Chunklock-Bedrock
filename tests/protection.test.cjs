@@ -252,7 +252,18 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
   assert.equal(player.dimension.getEntities().length, 4, "four creations maximum per refresh");
   intervals[0]();
   intervals[0]();
-  assert.equal(player.dimension.getEntities().length, 8, "four sides with two height segments");
+  intervals[0]();
+  assert.equal(player.dimension.getEntities().length, 16, "four sides cover the dimension plus an upper buffer");
+  const groundHelpers = player.dimension.getEntities().filter(e => e.location.y === 0).map(e => e);
+  player.location.y = 120;
+  intervals[0]();
+  assert.ok(groundHelpers.every(e => e.alive), "ascending must retain the entire lower column");
+  player.location.y = 200;
+  intervals[0]();
+  assert.ok(groundHelpers.every(e => e.alive), "flying above the dimension top must retain lower walls");
+  assert.ok(player.dimension.getEntities().some(e => e.location.y >= 192), "upper segments extend above the player");
+  player.location.y = 64;
+  intervals[0]();
   const drifting = player.dimension.getEntities()[0];
   const anchor = { ...drifting.location };
   drifting.location = { x: anchor.x, y: anchor.y + 0.2, z: anchor.z };
@@ -264,7 +275,7 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
   assert.equal(drifting.lastTeleport.checkForBlocks, false);
   assert.equal(drifting.lastTeleport.keepVelocity, false);
   load("walls", api).startWalls();
-  assert.equal(player.dimension.getEntities().length, 8, "reload must adopt existing helpers");
+  assert.equal(player.dimension.getEntities().length, 16, "reload must adopt existing helpers");
   players = [];
   intervals[0]();
   assert.equal(player.dimension.getEntities().length, 0);

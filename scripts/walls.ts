@@ -4,7 +4,7 @@ import { chunkAt, wallEdges } from "./regions.js";
 
 const TYPE = "chunklock:border_wall";
 const MAX_WALLS = 192;
-const VERTICAL_VIEW_RANGE = 96;
+const SKY_BUFFER = 128;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
 let started = false;
@@ -76,9 +76,8 @@ export function refreshWalls() {
       for (const edge of wallEdges(cells, (x, z) => isOpenCell(dimension.id, x, z))) {
         const horizontalDistance = Math.hypot(edge.x - player.location.x, edge.z - player.location.z);
         if (horizontalDistance > 40) continue;
-        for (let y = dimension.heightRange.min; y < dimension.heightRange.max; y += 64) {
+        for (let y = dimension.heightRange.min; y < dimension.heightRange.max + SKY_BUFFER; y += 64) {
           const verticalDistance = Math.abs(y + 32 - player.location.y);
-          if (verticalDistance > VERTICAL_VIEW_RANGE) continue;
           const id = `v4:${edge.key}:${y}`;
           const wall = {
             dimension,

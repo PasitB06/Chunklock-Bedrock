@@ -7,7 +7,7 @@
     "version": [
       0,
       2,
-      29
+      30
     ],
     "min_engine_version": [
       1,
@@ -22,7 +22,7 @@
       "version": [
         0,
         2,
-        29
+        30
       ],
       "description": "Chunklock custom entities"
     },
@@ -34,7 +34,7 @@
       "version": [
         0,
         2,
-        29
+        30
       ],
       "entry": "scripts/main.js"
     }
