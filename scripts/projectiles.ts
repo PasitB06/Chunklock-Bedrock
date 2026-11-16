@@ -4,6 +4,14 @@ import { segmentTouchesLocked } from "./regions.js";
 import { getPlayers2D } from "./state-cache.js";
 
 const MAX_PLAYER_DISTANCE_SQ = 96 * 96;
+const SCAN_INTERVAL_TICKS = 60;
+const EXCLUDED_SCAN_TYPES = [
+  "chunklock:border_wall",
+  "chunklock:requirement_display",
+  "minecraft:item",
+  "minecraft:xp_orb",
+  "minecraft:player",
+];
 
 // Best-effort prevention: stable API 2.6 has no cancellable pre-projectile-hit event.
 const tracked = new Map<string, { entity: Entity; previous: Vector3; idle: number }>();
@@ -46,20 +54,30 @@ export function startProjectiles() {
       for (const entity of snapshot.dimension.getEntities({
         location: { x: snapshot.x, y: snapshot.y, z: snapshot.z },
         maxDistance: 64,
+        excludeTypes: EXCLUDED_SCAN_TYPES,
       })) {
         adopt(entity);
       }
     }
-  }, 40);
+  }, SCAN_INTERVAL_TICKS);
   system.runInterval(() => {
     for (const [id, entry] of tracked) {
       try {
         const entity = entry.entity;
         const current = entity.location;
         const velocity = entity.getVelocity();
-        const dimensionId = entity.dimension.id;
+        const dimension = entity.dimension;
+        const dimensionId = dimension.id;
         const locked = (x: number, z: number) => !isOpenCell(dimensionId, x, z);
         if (segmentTouchesLocked(entry.previous, current, locked)) {
+          if (entity.typeId === "minecraft:ender_pearl") {
+            try {
+              dimension.playSound?.("random.glass", current, { volume: 1, pitch: 1 });
+              dimension.spawnParticle?.("minecraft:basic_smoke_particle", current);
+            } catch {
+              /* Feedback failure must not prevent intercepting the pearl. */
+            }
+          }
           entity.remove();
           tracked.delete(id);
         } else {

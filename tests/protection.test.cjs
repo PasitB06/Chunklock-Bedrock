@@ -802,3 +802,108 @@ test("dimension changes auto-unlock locked arrivals and respawns clear stale dea
   assert.equal(teleports.length, 1);
   assert.deepEqual(teleports[0].location, { x: 8.5, y: 64, z: 8.5 });
 });
+
+test("projectile scan filters non-projectiles at 60 ticks, pearls break with feedback, and stationary checkpoints skip serialization", () => {
+  let spawn;
+  let tick;
+  let scan;
+  const queries = [];
+  const sounds = [];
+  const particles = [];
+  let removed = 0;
+
+  const overworld = {
+    id: "minecraft:overworld",
+    heightRange: { min: -64, max: 320 },
+    getEntities: (opts) => {
+      queries.push(opts);
+      return [];
+    },
+    playSound: (id, loc, opts) => sounds.push({ id, loc, opts }),
+    spawnParticle: (id, loc) => particles.push({ id, loc }),
+    getTopmostBlock: ({ x, z }) => ({ location: { x: Math.floor(x), y: 63, z: Math.floor(z) } }),
+  };
+  const players = [{ dimension: overworld, location: { x: 8, y: 64, z: 8 } }];
+  const projApi = {
+    world: {
+      afterEvents: { entitySpawn: { subscribe: (fn) => (spawn = fn) } },
+      getAllPlayers: () => players,
+      getDynamicPropertyIds: () => ["chunklock:open:minecraft:overworld:0:0"],
+      getDynamicProperty: (key) => (key.endsWith(":0:0") ? true : undefined),
+    },
+    system: {
+      currentTick: 10,
+      runInterval: (fn, n) => {
+        if (n === 1) tick = fn;
+        if (n === 60) scan = fn;
+      },
+    },
+  };
+  load("projectiles", projApi).startProjectiles();
+  assert.ok(scan, "fallback entity scan runs every 60 ticks");
+  scan();
+  assert.ok(queries[0].excludeTypes.includes("minecraft:item"));
+  assert.ok(queries[0].excludeTypes.includes("chunklock:border_wall"));
+
+  const pearl = {
+    id: "pearl-1",
+    typeId: "minecraft:ender_pearl",
+    location: { x: 15, y: 65, z: 8 },
+    getComponent: () => ({}),
+    getVelocity: () => ({ x: 2, y: 0, z: 0 }),
+    dimension: overworld,
+    remove: () => removed++,
+  };
+  spawn({ entity: pearl });
+  pearl.location = { x: 17, y: 65, z: 8 };
+  tick();
+  assert.equal(removed, 1);
+  assert.equal(sounds[0].id, "random.glass");
+  assert.equal(particles[0].id, "minecraft:basic_smoke_particle");
+
+  // Stationary players skip collision dynamic-property writes until moving >= 0.25 blocks.
+  const worldProps = new Map();
+  const playerProps = new Map();
+  let safeWrites = 0;
+  let collisionTick;
+  const colPlayer = {
+    id: "p-dirty",
+    dimension: overworld,
+    location: { x: 8.5, y: 64, z: 8.5 },
+    getRotation: () => ({ x: 0, y: 0 }),
+    getGameMode: () => "Survival",
+    getSpawnPoint: () => undefined,
+    getDynamicProperty: (k) => playerProps.get(k),
+    setDynamicProperty: (k, v) => {
+      if (k === "chunklock:collision:safe_positions") safeWrites++;
+      if (v === undefined) playerProps.delete(k);
+      else playerProps.set(k, v);
+    },
+    teleport: () => {},
+  };
+  const colApi = {
+    GameMode: { Spectator: "Spectator", Survival: "Survival" },
+    world: {
+      getAllPlayers: () => [colPlayer],
+      getDimension: () => overworld,
+      getDynamicProperty: (k) => worldProps.get(k),
+      setDynamicProperty: (k, v) => worldProps.set(k, v),
+      getDynamicPropertyIds: () => [...worldProps.keys()],
+      afterEvents: { playerLeave: { subscribe: () => {} } },
+    },
+    system: {
+      currentTick: 20,
+      runInterval: (fn) => (collisionTick = fn),
+    },
+  };
+  load("collision", colApi).startCollision();
+  assert.equal(safeWrites, 1, "initial safe checkpoint writes once on tick 20");
+  colPlayer.location = { x: 8.55, y: 64, z: 8.5 };
+  colApi.system.currentTick = 40;
+  collisionTick();
+  assert.equal(safeWrites, 1, "micro-movement below 0.25 blocks must skip JSON serialization");
+  colPlayer.location = { x: 8.85, y: 64, z: 8.5 };
+  colApi.system.currentTick = 60;
+  collisionTick();
+  assert.equal(safeWrites, 2, "movement reaching 0.25 blocks persists updated checkpoint");
+});

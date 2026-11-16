@@ -18,6 +18,7 @@ import { refreshWalls } from "./walls.js";
 const SAFE_POSITIONS_PROPERTY = "chunklock:collision:safe_positions";
 const PERSIST_INTERVAL = 20;
 const MAX_ARRIVAL_ATTEMPTS = 10;
+const DIRTY_DISTANCE_SQ = 0.25 * 0.25;
 
 type SafePosition = {
   dimensionId: string;
@@ -33,6 +34,8 @@ type PendingArrival = {
 
 const previousSafePositions = new Map<string, Map<string, SafePosition>>();
 const lastPersisted = new Map<string, string>();
+const persistedBaselines = new Map<string, SafePosition>();
+const dirtyPlayers = new Set<string>();
 const nextFallbackAttempt = new Map<string, number>();
 const pendingDimensionArrivals = new Map<string, PendingArrival>();
 
@@ -127,12 +130,46 @@ function findFallback(player: Player): SafePosition | undefined {
   return undefined;
 }
 
+function recordSafePosition(player: Player, positions: Map<string, SafePosition>, next: SafePosition) {
+  positions.set(next.dimensionId, next);
+  const baselineKey = `${player.id}:${next.dimensionId}`;
+  const baseline = persistedBaselines.get(baselineKey);
+  if (
+    !baseline ||
+    chunkAt(baseline.location.x) !== chunkAt(next.location.x) ||
+    chunkAt(baseline.location.z) !== chunkAt(next.location.z)
+  ) {
+    persistedBaselines.set(baselineKey, next);
+    dirtyPlayers.add(player.id);
+    return;
+  }
+  const dx = next.location.x - baseline.location.x;
+  const dy = next.location.y - baseline.location.y;
+  const dz = next.location.z - baseline.location.z;
+  if (dx * dx + dy * dy + dz * dz >= DIRTY_DISTANCE_SQ) {
+    persistedBaselines.set(baselineKey, next);
+    dirtyPlayers.add(player.id);
+  }
+}
+
+function clearPlayerBaselines(playerId: string) {
+  const prefix = `${playerId}:`;
+  for (const key of persistedBaselines.keys()) {
+    if (key.startsWith(prefix)) persistedBaselines.delete(key);
+  }
+}
+
 function persist(player: Player, positions: Map<string, SafePosition>) {
+  if (!dirtyPlayers.has(player.id)) return;
   const serialized = JSON.stringify(Object.fromEntries(positions));
-  if (lastPersisted.get(player.id) === serialized) return;
+  if (lastPersisted.get(player.id) === serialized) {
+    dirtyPlayers.delete(player.id);
+    return;
+  }
   try {
     player.setDynamicProperty(SAFE_POSITIONS_PROPERTY, serialized);
     lastPersisted.set(player.id, serialized);
+    dirtyPlayers.delete(player.id);
   } catch (error) {
     console.warn(`[Chunklock] Could not save a collision checkpoint: ${error}`);
   }
@@ -202,7 +239,7 @@ function completeDimensionArrival(
   }
 
   markPlayerSeeded(player, dimensionId);
-  positionsFor(player).set(dimensionId, {
+  recordSafePosition(player, positionsFor(player), {
     dimensionId,
     location: { x: location.x, y: location.y, z: location.z },
     rotation: player.getRotation(),
@@ -231,21 +268,23 @@ function handlePlayerSpawn(event: PlayerSpawnAfterEvent) {
   const positions = positionsFor(player);
   const current = capture(player);
   positions.delete(current.dimensionId);
+  persistedBaselines.delete(`${player.id}:${current.dimensionId}`);
+  dirtyPlayers.add(player.id);
 
   if (isOpenPosition(current)) {
-    positions.set(current.dimensionId, current);
+    recordSafePosition(player, positions, current);
     return;
   }
 
   const fallback = findFallback(player);
   if (fallback) {
-    positions.set(fallback.dimensionId, fallback);
+    recordSafePosition(player, positions, fallback);
     returnPlayer(player, fallback);
     return;
   }
 
   openExemptChunk(current.dimensionId, chunkAt(current.location.x), chunkAt(current.location.z));
-  positions.set(current.dimensionId, current);
+  recordSafePosition(player, positions, current);
   safeRefreshPresentation();
 }
 
@@ -279,13 +318,13 @@ function checkPlayers() {
     const saved = positions.get(current.dimensionId);
 
     if (isOpenPosition(current)) {
-      positions.set(current.dimensionId, current);
+      recordSafePosition(player, positions, current);
     } else if (player.getGameMode() !== GameMode.Spectator) {
       let fallback = saved && isOpenPosition(saved) ? saved : undefined;
       if (!fallback && currentTick >= (nextFallbackAttempt.get(player.id) ?? -Infinity)) {
         fallback = findFallback(player);
         nextFallbackAttempt.set(player.id, currentTick + PERSIST_INTERVAL);
-        if (fallback) positions.set(fallback.dimensionId, fallback);
+        if (fallback) recordSafePosition(player, positions, fallback);
       }
       if (fallback) {
         fallback.rotation = current.rotation;
@@ -300,6 +339,8 @@ function checkPlayers() {
     if (!online.has(playerId)) {
       previousSafePositions.delete(playerId);
       lastPersisted.delete(playerId);
+      clearPlayerBaselines(playerId);
+      dirtyPlayers.delete(playerId);
       nextFallbackAttempt.delete(playerId);
       pendingDimensionArrivals.delete(playerId);
     }
@@ -313,6 +354,8 @@ export function resetCollisionCheckpoints(player?: Player) {
   if (player) {
     previousSafePositions.delete(player.id);
     lastPersisted.delete(player.id);
+    clearPlayerBaselines(player.id);
+    dirtyPlayers.delete(player.id);
     nextFallbackAttempt.delete(player.id);
     pendingDimensionArrivals.delete(player.id);
     try {
@@ -324,6 +367,8 @@ export function resetCollisionCheckpoints(player?: Player) {
   }
   previousSafePositions.clear();
   lastPersisted.clear();
+  persistedBaselines.clear();
+  dirtyPlayers.clear();
   nextFallbackAttempt.clear();
   pendingDimensionArrivals.clear();
   try {
@@ -348,6 +393,8 @@ export function startCollision() {
   world.afterEvents.playerLeave.subscribe(({ playerId }) => {
     previousSafePositions.delete(playerId);
     lastPersisted.delete(playerId);
+    clearPlayerBaselines(playerId);
+    dirtyPlayers.delete(playerId);
     nextFallbackAttempt.delete(playerId);
     pendingDimensionArrivals.delete(playerId);
   });
