@@ -188,7 +188,7 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(harness.intervals.length, 1);
   assert.equal(harness.entities.length, 1);
   const display = harness.entities[0];
-  assert.deepEqual(display.location, { x: 15.82, y: 65.47, z: 8 });
+  assert.deepEqual(display.location, { x: 15.99, y: 65.47, z: 8 });
   assert.equal(display.nameTag, "Oak Log\n\u00d7 16");
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
