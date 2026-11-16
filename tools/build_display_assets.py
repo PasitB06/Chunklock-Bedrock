@@ -1,7 +1,6 @@
 """Generate matching flat-icon script indices and client texture references."""
 import argparse
 import json
-import math
 from pathlib import Path
 import re
 import struct
@@ -46,24 +45,8 @@ def shape_for(item_id, texture):
     return 1
 
 
-def shape_back_z(shape_boxes):
-    rx, ry = math.radians(25), math.radians(45)
-    cx, sx = math.cos(rx), math.sin(rx)
-    cy, sy = math.cos(ry), math.sin(ry)
-    max_z = 0.0
-    for origin, size in shape_boxes:
-        for dx in (origin[0], origin[0] + size[0]):
-            for dy in (origin[1], origin[1] + size[1]):
-                for dz in (origin[2], origin[2] + size[2]):
-                    # Match Bedrock X-then-Y and Y-then-X bounds conservatively.
-                    z_xy = (-dx * sy + (dy * sx + dz * cx) * cy)
-                    z_yx = (dy * sx + (dx * sy + dz * cy) * cx)
-                    max_z = max(max_z, z_xy, z_yx)
-    return round(max_z, 3)
-
-
 def shape_geometry():
-    # Center every model inside the 0.85-block click box (y = 0..13.6) and keep 3D backs clear of the wall.
+    # Center every model at x=0, z=0 inside the 0.85-block click box (y = 0..13.6).
     y_center = 6.8
     boxes = {
         1: [([-3.75, -3.75, -3.75], [7.5, 7.5, 7.5])],
@@ -85,9 +68,8 @@ def shape_geometry():
                       'uv': {'north': {'uv': [0, 0], 'uv_size': [16, 16]},
                              'south': {'uv': [16, 0], 'uv_size': [-16, 16]}}}]
         else:
-            z_shift = -shape_back_z(boxes[shape])
-            cubes = [{'origin': [origin[0], origin[1] + y_center, origin[2] + z_shift], 'size': size,
-                      'pivot': [0, y_center, z_shift], 'rotation': [25, 45, 0],
+            cubes = [{'origin': [origin[0], origin[1] + y_center, origin[2]], 'size': size,
+                      'pivot': [0, y_center, 0], 'rotation': [25, 45, 0],
                       'uv': {face: {'uv': [0, 0], 'uv_size': [16, 16]} for face in ['north', 'south', 'east', 'west', 'up', 'down']}}
                      for origin, size in boxes[shape]]
         result.append({'description': {'identifier': f'geometry.chunklock.requirement_shape_{shape}',
