@@ -1,5 +1,5 @@
 import { Dimension, Entity, Player, system, world } from "@minecraft/server";
-import { displayIconIndex } from "./display-icons-data.js";
+import { displayIconIndex, displayShape } from "./display-icons-data.js";
 import { isOpenCell } from "./access.js";
 import { getChunkRequirement, formatItemDisplayName } from "./requirements.js";
 import { Cell, WallEdge, wallEdges } from "./regions.js";
@@ -8,7 +8,7 @@ const TYPE = "chunklock:requirement_display";
 const MAX_DISPLAYS = 128;
 const SPAWN_BUDGET = 4;
 const VIEW_DISTANCE = 24;
-const OPEN_SIDE_OFFSET = 0.05;
+const OPEN_SIDE_OFFSET = 0.3;
 const DISPLAY_ELEVATION = 0.25;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
@@ -28,7 +28,7 @@ type DisplayCandidate = {
   remainingCost: number;
 };
 
-const candidateKey = (edge: WallEdge) => `plaque2:${edge.key}:${edge.lockedCell.x}:${edge.lockedCell.z}`;
+const candidateKey = (edge: WallEdge) => `plaque3:${edge.key}:${edge.lockedCell.x}:${edge.lockedCell.z}`;
 
 function positionOnOpenSide(edge: WallEdge): { x: number; z: number } {
   if (edge.side === "north") return { x: edge.x, z: edge.z + OPEN_SIDE_OFFSET };
@@ -59,6 +59,7 @@ function updateDisplay(entity: Entity, candidate: DisplayCandidate) {
   const label = `${formatItemDisplayName(candidate.itemId)}\n× ${candidate.remainingCost}`;
   if (entity.nameTag !== label) entity.nameTag = label;
   entity.setProperty("chunklock:display_icon_v2", displayIconIndex(candidate.itemId));
+  entity.setProperty("chunklock:display_shape", displayShape(candidate.itemId));
   const current = entity.location;
   if (
     Math.abs(current.x - candidate.x) > 0.01 ||

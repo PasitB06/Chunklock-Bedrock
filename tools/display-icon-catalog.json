@@ -114,7 +114,7 @@
     "minecraft:brick_slab": "textures/blocks/brick",
     "minecraft:brick_stairs": "textures/blocks/brick",
     "minecraft:brick_wall": "textures/blocks/brick",
-    "minecraft:bricks": "textures/items/brick",
+    "minecraft:bricks": "textures/blocks/brick",
     "minecraft:brown_banner": "textures/blocks/wool_colored_brown",
     "minecraft:brown_bed": "textures/items/bed_brown",
     "minecraft:brown_candle": "textures/items/candles/brown_candle",

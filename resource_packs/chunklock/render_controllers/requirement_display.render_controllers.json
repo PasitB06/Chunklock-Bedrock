@@ -790,9 +790,24 @@
             "Texture.icon_782",
             "Texture.icon_783"
           ]
+        },
+        "geometries": {
+          "Array.shapes": [
+            "Geometry.shape_0",
+            "Geometry.shape_1",
+            "Geometry.shape_2",
+            "Geometry.shape_3",
+            "Geometry.shape_4",
+            "Geometry.shape_5",
+            "Geometry.shape_6",
+            "Geometry.shape_7",
+            "Geometry.shape_8",
+            "Geometry.shape_9",
+            "Geometry.shape_10"
+          ]
         }
       },
-      "geometry": "Geometry.default",
+      "geometry": "Array.shapes[query.property('chunklock:display_shape')]",
       "materials": [
         {
           "*": "Material.default"

@@ -113,7 +113,7 @@
         "icon_103": "textures/blocks/brick",
         "icon_104": "textures/blocks/brick",
         "icon_105": "textures/blocks/brick",
-        "icon_106": "textures/items/brick",
+        "icon_106": "textures/blocks/brick",
         "icon_107": "textures/blocks/wool_colored_brown",
         "icon_108": "textures/items/bed_brown",
         "icon_109": "textures/items/candles/brown_candle",
@@ -793,7 +793,17 @@
         "icon_783": "textures/blocks/hardened_clay_stained_yellow"
       },
       "geometry": {
-        "default": "geometry.chunklock.requirement_display"
+        "shape_0": "geometry.chunklock.requirement_shape_0",
+        "shape_1": "geometry.chunklock.requirement_shape_1",
+        "shape_2": "geometry.chunklock.requirement_shape_2",
+        "shape_3": "geometry.chunklock.requirement_shape_3",
+        "shape_4": "geometry.chunklock.requirement_shape_4",
+        "shape_5": "geometry.chunklock.requirement_shape_5",
+        "shape_6": "geometry.chunklock.requirement_shape_6",
+        "shape_7": "geometry.chunklock.requirement_shape_7",
+        "shape_8": "geometry.chunklock.requirement_shape_8",
+        "shape_9": "geometry.chunklock.requirement_shape_9",
+        "shape_10": "geometry.chunklock.requirement_shape_10"
       },
       "animations": {
         "pose": "animation.chunklock.requirement_display.pose"

@@ -1,6 +1,6 @@
 import { Direction, Entity, Player, system, world } from "@minecraft/server";
 import { isLocked, isOpenCell } from "./access.js";
-import { clearActionNotice, showActionNotice } from "./notices.js";
+import { clearActionNotice, isProtectionNoticeSuppressed, showActionNotice } from "./notices.js";
 
 // Positive horizontal hitbox overlap makes a border-straddling mob accessible.
 function hasOpenHitbox(target: Entity): boolean {
@@ -83,7 +83,7 @@ export function startProtection() {
       (event.itemStack !== undefined && isLocked(event.block.dimension.id, x + dx, z + dz))
     ) {
       event.cancel = true;
-      notify(event.player);
+      if (!isProtectionNoticeSuppressed(event.player.id)) notify(event.player);
     }
   });
   world.beforeEvents.playerInteractWithEntity.subscribe((event) => {

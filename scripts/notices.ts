@@ -2,9 +2,22 @@ import { Player, system } from "@minecraft/server";
 
 export const NOTICE_HOLD_TICKS = 100;
 const activeNotices = new Map<string, { message: string; expiresAt: number }>();
+const protectionNoticeSuppressedUntil = new Map<string, number>();
 
 function currentTick(): number {
   return typeof system?.currentTick === "number" ? system.currentTick : 0;
+}
+
+export function suppressProtectionNotice(playerId: string, durationTicks: number) {
+  protectionNoticeSuppressedUntil.set(playerId, currentTick() + durationTicks);
+}
+
+export function isProtectionNoticeSuppressed(playerId: string): boolean {
+  const until = protectionNoticeSuppressedUntil.get(playerId);
+  if (until === undefined) return false;
+  if (currentTick() < until) return true;
+  protectionNoticeSuppressedUntil.delete(playerId);
+  return false;
 }
 
 export function showActionNotice(player: Player, message: string, durationTicks = NOTICE_HOLD_TICKS) {
@@ -40,4 +53,5 @@ export function refreshActionNotice(player: Player): boolean {
 
 export function clearActionNotice(playerId: string) {
   activeNotices.delete(playerId);
+  protectionNoticeSuppressedUntil.delete(playerId);
 }

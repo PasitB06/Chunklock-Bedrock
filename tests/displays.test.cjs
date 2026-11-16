@@ -188,12 +188,13 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(harness.intervals.length, 1);
   assert.equal(harness.entities.length, 1);
   const display = harness.entities[0];
-  assert.deepEqual(display.location, { x: 15.95, y: 65.87, z: 8 });
+  assert.deepEqual(display.location, { x: 15.7, y: 65.87, z: 8 });
   assert.equal(display.nameTag, "Oak Log\n\u00d7 16");
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
   assert.equal(display.properties.get("chunklock:display_yaw"), 90);
   assert.equal(display.properties.get("chunklock:display_icon_v2"), load("display-icons-data").DISPLAY_ICON_INDEX["minecraft:oak_log"]);
+  assert.equal(display.properties.get("chunklock:display_shape"), 1);
   assert.deepEqual(display.rotation, { x: 0, y: 90 });
   assert.equal(display.equipment.size, 0);
   assert.deepEqual(display.commands, []);
@@ -312,7 +313,7 @@ test("plaque migration replaces old helpers without changing requirements or acc
   harness.displays.startRequirementDisplays();
   assert.equal(old.removed, true);
   assert.equal(harness.entities.length, 1);
-  assert.ok(harness.entities[0].getDynamicProperty("chunklock:display_key").startsWith("plaque2:"));
+  assert.ok(harness.entities[0].getDynamicProperty("chunklock:display_key").startsWith("plaque3:"));
   assert.equal(harness.props.get("chunklock:req:minecraft:overworld:1:0"), stored);
   assert.equal(harness.props.get("chunklock:open:minecraft:overworld:0:0"), true);
 });
@@ -338,4 +339,45 @@ test("each catalog item has its own index independent of shared texture paths", 
   const catalog = JSON.parse(fs.readFileSync(path.join(__dirname, "../tools/display-icon-catalog.json"), "utf8"));
   const indices = Object.keys(catalog.items).map(item => icons.DISPLAY_ICON_INDEX[item]);
   assert.equal(new Set(indices).size, indices.length);
+});
+
+test("shaped block requirements use explicit models rather than square face swatches", () => {
+  const icons = load("display-icons-data");
+  const root = path.join(__dirname, "..");
+  const read = (name) => JSON.parse(fs.readFileSync(path.join(root, name), "utf8"));
+  const behavior = read("behavior_packs/chunklock/entities/requirement_display.json")["minecraft:entity"];
+  const client = read("resource_packs/chunklock/entity/requirement_display.entity.json")["minecraft:client_entity"].description;
+  const geo = read("resource_packs/chunklock/models/entity/requirement_display.geo.json")["minecraft:geometry"];
+  const controller = read("resource_packs/chunklock/render_controllers/requirement_display.render_controllers.json").render_controllers["controller.render.chunklock.requirement_display_v2"];
+
+  assert.equal(geo.length, 11);
+  assert.deepEqual(behavior.description.properties["chunklock:display_shape"].range, [0, 10]);
+  assert.equal(controller.arrays.geometries["Array.shapes"].length, 11);
+  for (let i = 0; i < 11; i++) {
+    assert.equal(geo[i].description.identifier, `geometry.chunklock.requirement_shape_${i}`);
+    assert.equal(client.geometry[`shape_${i}`], `geometry.chunklock.requirement_shape_${i}`);
+  }
+  assert.equal(geo[5].bones[0].cubes.length, 4, "fence shape has two posts and two rails");
+
+  assert.equal(icons.displayShape("minecraft:spruce_pressure_plate"), 2);
+  assert.equal(icons.displayShape("minecraft:white_carpet"), 2);
+  assert.equal(icons.displayShape("minecraft:moss_carpet"), 2);
+  assert.equal(icons.displayShape("minecraft:spruce_planks"), 1);
+  assert.equal(icons.displayShape("minecraft:bricks"), 1);
+  assert.equal(icons.displayShape("minecraft:brick"), 0);
+  assert.equal(icons.displayShape("minecraft:oak_slab"), 3);
+  assert.equal(icons.displayShape("minecraft:daylight_detector"), 3);
+  assert.equal(icons.displayShape("minecraft:oak_stairs"), 4);
+  assert.equal(icons.displayShape("minecraft:oak_fence"), 5);
+  assert.equal(icons.displayShape("minecraft:cobblestone_wall"), 6);
+  assert.equal(icons.displayShape("minecraft:spruce_trapdoor"), 8);
+  assert.equal(icons.displayShape("minecraft:glass_pane"), 8);
+  assert.equal(icons.displayShape("minecraft:red_stained_glass_pane"), 8);
+  assert.equal(icons.displayShape("minecraft:white_banner"), 9);
+  assert.equal(icons.displayShape("minecraft:spruce_button"), 10);
+  assert.equal(icons.displayShape("minecraft:lily_of_the_valley"), 0);
+  assert.equal(icons.displayShape("minecraft:sculk_vein"), 0);
+  assert.equal(icons.displayShape("minecraft:tripwire_hook"), 0);
+  assert.equal(icons.displayShape("minecraft:stick"), 0);
+  assert.equal(icons.displayShape("other:unknown"), 0);
 });
