@@ -4,15 +4,27 @@
     "name": "Chunklock Resources",
     "description": "Chunklock Bedrock resource starter",
     "uuid": "830b6dd0-3665-484e-96a5-49291ea28c1e",
-    "version": [0, 2, 5],
-    "min_engine_version": [1, 26, 60]
+    "version": [
+      0,
+      2,
+      6
+    ],
+    "min_engine_version": [
+      1,
+      26,
+      60
+    ]
   },
   "modules": [
     {
       "description": "Chunklock resources",
       "type": "resources",
       "uuid": "eef54820-f787-4807-80bc-b80aa36e1442",
-      "version": [0, 2, 5]
+      "version": [
+        0,
+        2,
+        6
+      ]
     }
   ]
 }

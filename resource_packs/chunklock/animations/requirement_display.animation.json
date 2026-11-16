@@ -14,7 +14,7 @@
         "rightArm": {
           "rotation": [
             0,
-            "query.life_time * 60",
+            0,
             0
           ]
         },
@@ -22,7 +22,7 @@
           "rotation": [
             -90,
             0,
-            0
+            -45
           ],
           "position": [
             0,
