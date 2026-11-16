@@ -4,8 +4,7 @@
     "description": {
       "identifier": "chunklock:border_wall",
       "materials": {
-        "default": "chunklock_border_wall",
-        "vibrant": "entity_alphablend"
+        "default": "chunklock_border_wall"
       },
       "textures": {
         "default": "textures/entity/border_wall",

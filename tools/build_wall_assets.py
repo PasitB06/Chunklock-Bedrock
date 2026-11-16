@@ -66,7 +66,7 @@ write(RP / 'entity/border_wall.entity.json', {
     'format_version': '1.21.80',
     'minecraft:client_entity': {'description': {
         'identifier': 'chunklock:border_wall',
-        'materials': {'default': 'chunklock_border_wall', 'vibrant': 'entity_alphablend'},
+        'materials': {'default': 'chunklock_border_wall'},
         'textures': {'default': 'textures/entity/border_wall',
                      'vibrant': 'textures/entity/border_wall_vibrant'},
         'geometry': {'default': 'geometry.chunklock.border_wall'},
@@ -79,15 +79,13 @@ write(RP / 'render_controllers/border_wall.render_controllers.json', {
     'format_version': '1.8.0',
     'render_controllers': {'controller.render.chunklock.border_wall': {
         'geometry': 'Geometry.default',
-        'materials': [{'*': "query.graphics_mode_is_any('deferred') ? Material.vibrant : Material.default"}],
+        'materials': [{'*': 'Material.default'}],
         'textures': ["query.graphics_mode_is_any('deferred') ? Texture.vibrant : Texture.default"],
         'ignore_lighting': True
     }}
 })
-# Each vertical tile extends 0.08 model units at both ends to hide subpixel seams.
-# Ultra-thin 0.1-unit depth with matching 0.05-unit corner extension closes
-# perpendicular corners seamlessly while keeping front/back faces distinct for
-# backface culling.
+# Use a single uniform-color column cube without overlapping vertical tiles or corner overhangs
+# so coplanar Z-fighting and depth-buffer flicker cannot occur when moving the camera.
 write(RP / 'models/entity/border_wall.geo.json', {
     'format_version': '1.12.0',
     'minecraft:geometry': [{
@@ -95,10 +93,10 @@ write(RP / 'models/entity/border_wall.geo.json', {
                         'texture_height': 16, 'visible_bounds_width': 48,
                         'visible_bounds_height': 800, 'visible_bounds_offset': [0, 0, 0]},
         'bones': [{'name': 'wall', 'pivot': [0, 0, 0], 'cubes': [{
-            'origin': [-128.05, tile * 256 - 0.08, -0.05], 'size': [256.1, 256.16, 0.1],
+            'origin': [-128, -6144, -0.15], 'size': [256, 12288, 0.3],
             'uv': {face: {'uv': [0, 0], 'uv_size': [16, 16]}
                    for face in ['north', 'south']}
-        } for tile in range(-24, 24)]}]
+        }]}]
     }]
 })
 

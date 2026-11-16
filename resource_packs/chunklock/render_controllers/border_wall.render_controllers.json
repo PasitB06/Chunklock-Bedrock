@@ -5,7 +5,7 @@
       "geometry": "Geometry.default",
       "materials": [
         {
-          "*": "query.graphics_mode_is_any('deferred') ? Material.vibrant : Material.default"
+          "*": "Material.default"
         }
       ],
       "textures": [

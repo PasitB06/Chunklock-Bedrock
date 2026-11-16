@@ -350,7 +350,7 @@ test("combat guard cancels melee and same-tick projectile damage in locked cells
   }
 });
 
-test("wall geometry uses bounded tiles with no translucent edge caps", () => {
+test("wall geometry uses a single non-overlapping column with no translucent edge caps", () => {
   const root = path.join(__dirname, "..");
   const geometry = JSON.parse(
     fs.readFileSync(path.join(root, "resource_packs/chunklock/models/entity/border_wall.geo.json"), "utf8")
@@ -358,18 +358,15 @@ test("wall geometry uses bounded tiles with no translucent edge caps", () => {
   assert.equal(geometry.description.visible_bounds_width, 48);
   assert.equal(geometry.description.visible_bounds_height, 800);
   const cubes = geometry.bones[0].cubes;
-  assert.equal(cubes.length, 48);
-  for (const cube of cubes) {
-    assert.equal(cube.origin[0], -128.05);
-    assert.equal(cube.origin[2], -0.05);
-    assert.equal(cube.size[0], 256.1);
-    assert.ok(cube.size[1] <= 256.16);
-    assert.equal(cube.size[2], 0.1);
-    assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
-  }
-  for (let index = 1; index < cubes.length; index++) {
-    assert.ok(cubes[index - 1].origin[1] + cubes[index - 1].size[1] > cubes[index].origin[1], "vertical tiles overlap instead of exposing terrain");
-  }
+  assert.equal(cubes.length, 1);
+  const cube = cubes[0];
+  assert.equal(cube.origin[0], -128);
+  assert.equal(cube.origin[1], -6144);
+  assert.equal(cube.origin[2], -0.15);
+  assert.equal(cube.size[0], 256);
+  assert.equal(cube.size[1], 12288);
+  assert.equal(cube.size[2], 0.3);
+  assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
   const material = JSON.parse(
     fs.readFileSync(path.join(root, "resource_packs/chunklock/materials/entity.material"), "utf8")
   ).materials["chunklock_border_wall:entity_alphablend"];
@@ -554,7 +551,7 @@ test("collision allows free movement within open chunks and teleports back on lo
   assert.equal(teleports.length, 2, "Spectator must bypass locked chunk pullback");
 });
 
-test("deferred walls use vanilla blending while classic keeps its overlap material", () => {
+test("deferred walls use the overlap material with the emissive vibrant texture", () => {
   const root = path.join(__dirname, "..");
   const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), "utf8"));
   const entity = read("resource_packs/chunklock/entity/border_wall.entity.json")["minecraft:client_entity"].description;
@@ -568,7 +565,7 @@ test("deferred walls use vanilla blending while classic keeps its overlap materi
     };
     const material = vm.runInNewContext(controller.materials[0]["*"], context);
     const texture = vm.runInNewContext(controller.textures[0], context);
-    assert.equal(material, mode === "deferred" ? "entity_alphablend" : "chunklock_border_wall", mode);
+    assert.equal(material, "chunklock_border_wall", mode);
     assert.equal(texture, "textures/entity/border_wall" + (mode === "deferred" ? "_vibrant" : ""), mode);
   }
 });
