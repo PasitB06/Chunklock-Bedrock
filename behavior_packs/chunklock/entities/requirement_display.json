@@ -14,6 +14,11 @@
           ],
           "default": 0,
           "client_sync": true
+        },
+        "chunklock:display_is_2d": {
+          "type": "bool",
+          "default": false,
+          "client_sync": true
         }
       }
     },

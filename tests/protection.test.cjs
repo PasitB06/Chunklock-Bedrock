@@ -335,6 +335,17 @@ test("wall geometry uses bounded tiles with no translucent edge caps", () => {
     fs.readFileSync(path.join(root, "resource_packs/chunklock/animations/border_wall.animation.json"), "utf8")
   ).animations["animation.chunklock.border_wall.align"];
   assert.equal(animation.bones.wall.rotation[1], "query.property('chunklock:wall_yaw') - query.body_y_rotation");
+  const rpManifest = JSON.parse(fs.readFileSync(path.join(root, "resource_packs/chunklock/manifest.json"), "utf8"));
+  assert.deepEqual(rpManifest.capabilities, ["pbr"]);
+  const wallController = JSON.parse(
+    fs.readFileSync(
+      path.join(root, "resource_packs/chunklock/render_controllers/border_wall.render_controllers.json"),
+      "utf8"
+    )
+  ).render_controllers["controller.render.chunklock.border_wall"];
+  assert.deepEqual(wallController.textures, [
+    "query.graphics_mode_is_any('deferred') ? Texture.vibrant : Texture.default",
+  ]);
 });
 
 test("wall helpers breathe in terrain and use an unconditional damage sensor", () => {

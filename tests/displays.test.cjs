@@ -188,13 +188,17 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(harness.intervals.length, 1);
   assert.equal(harness.entities.length, 1);
   const display = harness.entities[0];
-  assert.deepEqual(display.location, { x: 15.95, y: 65.97, z: 8 });
+  assert.deepEqual(display.location, { x: 15.95, y: 65.87, z: 8 });
   assert.equal(display.nameTag, "Oak Log\n× 16");
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
   assert.equal(display.properties.get("chunklock:display_yaw"), 90);
+  assert.equal(display.properties.get("chunklock:display_is_2d"), false);
   assert.deepEqual(display.rotation, { x: 0, y: 90 });
   assert.equal(display.equipment.get("Mainhand").typeId, "minecraft:oak_log");
+  assert.equal(harness.displays.isFlatDisplayItem("minecraft:oak_log"), false);
+  assert.equal(harness.displays.isFlatDisplayItem("minecraft:oak_sapling"), true);
+  assert.equal(harness.displays.isFlatDisplayItem("minecraft:iron_ingot"), true);
   assert.deepEqual(display.commands, ["replaceitem entity @s slot.weapon.mainhand 0 minecraft:oak_log 1"]);
 
   const tooFar = makeHarness({
@@ -246,6 +250,11 @@ test("requirement display pack files define a compact helper with held-item rend
     type: "int",
     range: [0, 270],
     default: 0,
+    client_sync: true,
+  });
+  assert.deepEqual(behavior.description.properties["chunklock:display_is_2d"], {
+    type: "bool",
+    default: false,
     client_sync: true,
   });
   assert.deepEqual(components["minecraft:collision_box"], { width: 0.35, height: 0.35 });
