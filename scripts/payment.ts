@@ -11,7 +11,7 @@ import {
 } from "@minecraft/server";
 import { isOpenCell, unlockChunk } from "./access.js";
 import { refreshRequirementDisplays } from "./displays.js";
-import { clearActionNotice, showActionNotice, suppressProtectionNotice } from "./notices.js";
+import { clearActionNotice, showActionNotice } from "./notices.js";
 import {
   deleteChunkRequirement,
   formatItemDisplayName,
@@ -313,7 +313,6 @@ export function startPayments() {
     if (event.target.typeId !== DISPLAY_TYPE) return;
     event.cancel = true;
     useSuppressedUntil.set(event.player.id, system.currentTick + 10);
-    suppressProtectionNotice(event.player.id, 10);
     const now = system.currentTick;
     if (now - (cooldowns.get(event.player.id) ?? -COOLDOWN_TICKS) < COOLDOWN_TICKS) return;
     cooldowns.set(event.player.id, now);

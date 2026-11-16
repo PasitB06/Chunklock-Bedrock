@@ -8,8 +8,8 @@ const TYPE = "chunklock:requirement_display";
 const MAX_DISPLAYS = 128;
 const SPAWN_BUDGET = 4;
 const VIEW_DISTANCE = 24;
-const OPEN_SIDE_OFFSET = 0.3;
-const DISPLAY_ELEVATION = 0.25;
+const OPEN_SIDE_OFFSET = 0.45;
+const DISPLAY_ELEVATION = -0.15;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
 let started = false;
@@ -81,13 +81,16 @@ function candidateForEdge(dimension: Dimension, edge: WallEdge, player: Player):
   if (!requirement) return undefined;
   const head = headLocation(player);
   const position = positionOnOpenSide(edge);
+  const minY = dimension.heightRange?.min ?? -64;
+  const maxY = (dimension.heightRange?.max ?? 320) - 1;
+  const y = Math.max(minY, Math.min(maxY, head.y + DISPLAY_ELEVATION));
   return {
     dimension,
     key: candidateKey(edge),
     lockedX: edge.lockedCell.x,
     lockedZ: edge.lockedCell.z,
     x: position.x,
-    y: head.y + DISPLAY_ELEVATION,
+    y,
     z: position.z,
     rotation: openSideRotation(edge),
     priority,

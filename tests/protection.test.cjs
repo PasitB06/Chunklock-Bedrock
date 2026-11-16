@@ -138,13 +138,16 @@ test("protection cancels locked targets and placement across a border, but permi
   };
   const access = load("access", api);
   const playerProps = new Map();
+  const messages = [];
+  const actions = [];
   const player = {
     id: "p",
     dimension: { id: "minecraft:overworld" },
     location: { x: 8, y: 64, z: 8 },
     getDynamicProperty: (k) => playerProps.get(k),
     setDynamicProperty: (k, v) => playerProps.set(k, v),
-    sendMessage: () => {},
+    onScreenDisplay: { setActionBar: (m) => actions.push(m) },
+    sendMessage: (m) => messages.push(m),
   };
   access.seedPlayer(player);
   player.location.x = 24;
@@ -194,6 +197,8 @@ test("protection cancels locked targets and placement across a border, but permi
   });
   assert.equal(impacted.length, 1);
   assert.equal(impacted[0].location.x, 8);
+  assert.deepEqual(messages, []);
+  assert.deepEqual(actions, []);
 });
 
 test("wall helpers are budgeted, deduplicated on reload and removed after players leave", () => {
@@ -249,19 +254,23 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
     system: { currentTick: 10, runInterval: (fn) => intervals.push(fn) },
   };
   load("walls", api).startWalls();
-  assert.equal(player.dimension.getEntities().length, 4, "four creations maximum per refresh");
-  intervals[0]();
-  intervals[0]();
-  intervals[0]();
-  assert.equal(player.dimension.getEntities().length, 16, "four sides cover the dimension plus an upper buffer");
-  const groundHelpers = player.dimension.getEntities().filter(e => e.location.y === 0).map(e => e);
+  assert.equal(player.dimension.getEntities().length, 4, "one full-column helper per border edge");
+  const initialIds = player.dimension.getEntities().map((e) => e.getDynamicProperty("chunklock:wall_key"));
   player.location.y = 120;
   intervals[0]();
-  assert.ok(groundHelpers.every(e => e.alive), "ascending must retain the entire lower column");
-  player.location.y = 200;
+  assert.equal(player.dimension.getEntities().length, 4);
+  assert.deepEqual(
+    player.dimension.getEntities().map((e) => e.getDynamicProperty("chunklock:wall_key")),
+    initialIds,
+    "ascending must retain every border wall"
+  );
+  player.location.y = 400;
   intervals[0]();
-  assert.ok(groundHelpers.every(e => e.alive), "flying above the dimension top must retain lower walls");
-  assert.ok(player.dimension.getEntities().some(e => e.location.y >= 192), "upper segments extend above the player");
+  assert.equal(player.dimension.getEntities().length, 4);
+  assert.ok(
+    player.dimension.getEntities().every((e) => e.location.y >= 0 && e.location.y < 128),
+    "anchors must stay strictly within dimension height bounds"
+  );
   player.location.y = 64;
   intervals[0]();
   const drifting = player.dimension.getEntities()[0];
@@ -275,7 +284,7 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
   assert.equal(drifting.lastTeleport.checkForBlocks, false);
   assert.equal(drifting.lastTeleport.keepVelocity, false);
   load("walls", api).startWalls();
-  assert.equal(player.dimension.getEntities().length, 16, "reload must adopt existing helpers");
+  assert.equal(player.dimension.getEntities().length, 4, "reload must adopt existing helpers");
   players = [];
   intervals[0]();
   assert.equal(player.dimension.getEntities().length, 0);
@@ -341,9 +350,9 @@ test("wall geometry uses bounded tiles with no translucent edge caps", () => {
     fs.readFileSync(path.join(root, "resource_packs/chunklock/models/entity/border_wall.geo.json"), "utf8")
   )["minecraft:geometry"][0];
   assert.equal(geometry.description.visible_bounds_width, 48);
-  assert.equal(geometry.description.visible_bounds_height, 128);
+  assert.equal(geometry.description.visible_bounds_height, 800);
   const cubes = geometry.bones[0].cubes;
-  assert.equal(cubes.length, 4);
+  assert.equal(cubes.length, 48);
   for (const cube of cubes) {
     assert.equal(cube.origin[0], -128.05);
     assert.equal(cube.origin[2], -0.05);

@@ -188,7 +188,7 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(harness.intervals.length, 1);
   assert.equal(harness.entities.length, 1);
   const display = harness.entities[0];
-  assert.deepEqual(display.location, { x: 15.7, y: 65.87, z: 8 });
+  assert.deepEqual(display.location, { x: 15.55, y: 65.47, z: 8 });
   assert.equal(display.nameTag, "Oak Log\n\u00d7 16");
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
@@ -269,12 +269,14 @@ test("plaques are horizontally centered, wall-parallel and have no held-item ske
   assert.equal(behavior.description.properties["chunklock:display_icon_v2"].client_sync, true);
   assert.equal(behavior.components["minecraft:equipment"], undefined);
   assert.equal(behavior.components["minecraft:equippable"], undefined);
-  assert.deepEqual(behavior.components["minecraft:collision_box"], { width: 0.35, height: 0.35 });
+  assert.deepEqual(behavior.components["minecraft:collision_box"], { width: 0.85, height: 0.85 });
   const geometry = read("resource_packs/chunklock/models/entity/requirement_display.geo.json")["minecraft:geometry"][0];
   assert.deepEqual(geometry.bones.map((bone) => bone.name), ["root"]);
   const cube = geometry.bones[0].cubes[0];
   assert.equal(cube.origin[0] + cube.size[0] / 2, 0);
+  assert.equal(cube.origin[1] + cube.size[1] / 2, 6.8);
   assert.equal(cube.size[0], cube.size[1]);
+  assert.equal(cube.size[0], 12);
   assert.ok(cube.size[2] <= 0.1);
   assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
   const pose = read("resource_packs/chunklock/animations/requirement_display.animation.json").animations["animation.chunklock.requirement_display.pose"];

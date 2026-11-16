@@ -448,7 +448,6 @@ test("a paid display click suppresses follow-through block and item use temporar
   h.payment.startPayments();
   const player = h.activePlayers[0];
   h.click(player);
-  assert.equal(h.notices.isProtectionNoticeSuppressed(player.id), true);
   const block = {player, cancel:false};
   h.callbacks.block(block);
   assert.equal(block.cancel, true);
@@ -456,7 +455,6 @@ test("a paid display click suppresses follow-through block and item use temporar
   h.callbacks.use(use);
   assert.equal(use.cancel, true);
   h.api.system.currentTick += 11;
-  assert.equal(h.notices.isProtectionNoticeSuppressed(player.id), false);
   const held = {player, cancel:false, isFirstEvent:false};
   h.callbacks.block(held);
   assert.equal(held.cancel, true);

@@ -46,32 +46,34 @@ def shape_for(item_id, texture):
 
 
 def shape_geometry():
-    # All cubes share a fixed pivot/rotation; no held-item or category-specific hand transforms.
+    # Center every model inside the 0.85-block click box (y = 0..13.6 model units) with a fixed tilt.
+    y_center = 6.8
     boxes = {
-        1: [([-3, -3, -3], [6, 6, 6])],
-        2: [([-3, -0.3, -3], [6, 0.6, 6])],
-        3: [([-3, -1.5, -3], [6, 3, 6])],
-        4: [([-3, -3, -3], [6, 3, 6]), ([-3, 0, 0], [6, 3, 3])],
-        5: [([-3.5, -4, -1], [2, 8, 2]), ([1.5, -4, -1], [2, 8, 2]), ([-4, 1, -0.5], [8, 1, 1]), ([-4, -2, -0.5], [8, 1, 1])],
-        6: [([-1.5, -4, -1.5], [3, 8, 3]), ([-4, -3, -1], [8, 5, 2])],
-        7: [([-4, -3, -0.5], [1, 6, 1]), ([3, -3, -0.5], [1, 6, 1]), ([-3, 1, -0.5], [6, 1, 1]), ([-3, -2, -0.5], [6, 1, 1])],
-        8: [([-3, -3, -0.4], [6, 6, 0.8])],
-        9: [([-2, -4, -0.3], [4, 8, 0.6])],
-        10: [([-1.8, -1.2, -1.2], [3.6, 2.4, 2.4])]
+        1: [([-4.5, -4.5, -4.5], [9, 9, 9])],
+        2: [([-4.5, -0.45, -4.5], [9, 0.9, 9])],
+        3: [([-4.5, -2.25, -4.5], [9, 4.5, 9])],
+        4: [([-4.5, -4.5, -4.5], [9, 4.5, 9]), ([-4.5, 0, 0], [9, 4.5, 4.5])],
+        5: [([-5, -5.5, -1.5], [2.8, 11, 3]), ([2.2, -5.5, -1.5], [2.8, 11, 3]), ([-5.5, 1.5, -0.75], [11, 1.5, 1.5]), ([-5.5, -2.5, -0.75], [11, 1.5, 1.5])],
+        6: [([-2.25, -5.5, -2.25], [4.5, 11, 4.5]), ([-5.5, -4.5, -1.5], [11, 7.5, 3])],
+        7: [([-5.5, -4.5, -0.75], [1.5, 9, 1.5]), ([4, -4.5, -0.75], [1.5, 9, 1.5]), ([-4, 1.5, -0.75], [8, 1.5, 1.5]), ([-4, -2.5, -0.75], [8, 1.5, 1.5])],
+        8: [([-4.5, -4.5, -0.6], [9, 9, 1.2])],
+        9: [([-3, -5.5, -0.45], [6, 11, 0.9])],
+        10: [([-2.7, -1.8, -1.8], [5.4, 3.6, 3.6])]
     }
     shape_count = len(boxes) + 1
     result = []
     for shape in range(shape_count):
         if shape == 0:
-            cubes = [{'origin': [-4, -4, -0.01], 'size': [8, 8, 0.02],
+            cubes = [{'origin': [-6, y_center - 6, -0.01], 'size': [12, 12, 0.02],
                       'uv': {face: {'uv': [0, 0], 'uv_size': [16, 16]} for face in ['north', 'south']}}]
         else:
-            cubes = [{'origin': origin, 'size': size, 'pivot': [0, 0, 0], 'rotation': [25, 45, 0],
+            cubes = [{'origin': [origin[0], origin[1] + y_center, origin[2]], 'size': size,
+                      'pivot': [0, y_center, 0], 'rotation': [25, 45, 0],
                       'uv': {face: {'uv': [0, 0], 'uv_size': [16, 16]} for face in ['north', 'south', 'east', 'west', 'up', 'down']}}
                      for origin, size in boxes[shape]]
         result.append({'description': {'identifier': f'geometry.chunklock.requirement_shape_{shape}',
                        'texture_width': 16, 'texture_height': 16, 'visible_bounds_width': 2,
-                       'visible_bounds_height': 2, 'visible_bounds_offset': [0, 0.25, 0]},
+                       'visible_bounds_height': 2, 'visible_bounds_offset': [0, 0.425, 0]},
                        'bones': [{'name': 'root', 'pivot': [0, 0, 0], 'cubes': cubes}]})
     return {'format_version': '1.12.0', 'minecraft:geometry': result}
 

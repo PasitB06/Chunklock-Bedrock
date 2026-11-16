@@ -1,6 +1,5 @@
-import { Direction, Entity, Player, system, world } from "@minecraft/server";
+import { Direction, Entity, world } from "@minecraft/server";
 import { isLocked, isOpenCell } from "./access.js";
-import { clearActionNotice, isProtectionNoticeSuppressed, showActionNotice } from "./notices.js";
 
 // Positive horizontal hitbox overlap makes a border-straddling mob accessible.
 function hasOpenHitbox(target: Entity): boolean {
@@ -30,20 +29,6 @@ function hasOpenHitbox(target: Entity): boolean {
   }
 }
 
-const notices = new Map<string, number>();
-function notify(player: Player) {
-  if (system.currentTick - (notices.get(player.id) ?? -100) < 30) return;
-  notices.set(player.id, system.currentTick);
-  system.run(() => {
-    showActionNotice(player, "[Chunklock] This chunk is locked.");
-    try {
-      player.sendMessage("[Chunklock] This chunk is locked.");
-    } catch {
-      /* Player disconnected. */
-    }
-  });
-}
-
 export function startProtection() {
   // Cancel at the damage boundary, including hits before projectile polling runs.
   world.beforeEvents.entityHurt.subscribe((event) => {
@@ -67,7 +52,6 @@ export function startProtection() {
     const { x, z } = event.block.location;
     if (isLocked(event.block.dimension.id, x, z)) {
       event.cancel = true;
-      notify(event.player);
     }
   });
   world.beforeEvents.playerInteractWithBlock.subscribe((event) => {
@@ -83,7 +67,6 @@ export function startProtection() {
       (event.itemStack !== undefined && isLocked(event.block.dimension.id, x + dx, z + dz))
     ) {
       event.cancel = true;
-      if (!isProtectionNoticeSuppressed(event.player.id)) notify(event.player);
     }
   });
   world.beforeEvents.playerInteractWithEntity.subscribe((event) => {
@@ -91,16 +74,11 @@ export function startProtection() {
     const { x, z } = event.target.location;
     if (isLocked(event.target.dimension.id, x, z)) {
       event.cancel = true;
-      notify(event.player);
     }
   });
   world.beforeEvents.explosion.subscribe((event) => {
     event.setImpactedBlocks(
       event.getImpactedBlocks().filter((block) => !isLocked(block.dimension.id, block.location.x, block.location.z))
     );
-  });
-  world.afterEvents.playerLeave.subscribe((event) => {
-    notices.delete(event.playerId);
-    clearActionNotice(event.playerId);
   });
 }

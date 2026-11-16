@@ -93,12 +93,12 @@ write(RP / 'models/entity/border_wall.geo.json', {
     'minecraft:geometry': [{
         'description': {'identifier': 'geometry.chunklock.border_wall', 'texture_width': 16,
                         'texture_height': 16, 'visible_bounds_width': 48,
-                        'visible_bounds_height': 128, 'visible_bounds_offset': [0, 32, 0]},
+                        'visible_bounds_height': 800, 'visible_bounds_offset': [0, 0, 0]},
         'bones': [{'name': 'wall', 'pivot': [0, 0, 0], 'cubes': [{
             'origin': [-128.05, tile * 256 - 0.08, -0.05], 'size': [256.1, 256.16, 0.1],
             'uv': {face: {'uv': [0, 0], 'uv_size': [16, 16]}
                    for face in ['north', 'south']}
-        } for tile in range(4)]}]
+        } for tile in range(-24, 24)]}]
     }]
 })
 

@@ -3,8 +3,9 @@ import { isOpenCell, seedPlayer } from "./access.js";
 import { chunkAt, wallEdges } from "./regions.js";
 
 const TYPE = "chunklock:border_wall";
-const MAX_WALLS = 192;
-const SKY_BUFFER = 128;
+const MAX_WALLS = 384;
+const SPAWN_BUDGET = 12;
+const ANCHOR_STEP = 32;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
 let started = false;
@@ -43,6 +44,13 @@ function alignWall(entity: Entity, wall: { x: number; y: number; z: number; rota
   entity.setRotation({ x: 0, y: 0 });
 }
 
+function anchorAltitude(dimension: Dimension, playerY: number): number {
+  const min = dimension.heightRange?.min ?? -64;
+  const max = (dimension.heightRange?.max ?? 320) - 1;
+  const snapped = Math.round(playerY / ANCHOR_STEP) * ANCHOR_STEP;
+  return Math.max(min, Math.min(max, snapped));
+}
+
 export function refreshWalls() {
   pinnedWalls.clear();
   const players = world.getAllPlayers();
@@ -51,7 +59,7 @@ export function refreshWalls() {
     seedPlayer(player);
     grouped.set(player.dimension.id, [...(grouped.get(player.dimension.id) ?? []), player]);
   }
-  let spawnBudget = 4;
+  let spawnBudget = SPAWN_BUDGET;
   let active = 0;
   const pending: {
     dimension: Dimension;
@@ -76,21 +84,18 @@ export function refreshWalls() {
       for (const edge of wallEdges(cells, (x, z) => isOpenCell(dimension.id, x, z))) {
         const horizontalDistance = Math.hypot(edge.x - player.location.x, edge.z - player.location.z);
         if (horizontalDistance > 40) continue;
-        for (let y = dimension.heightRange.min; y < dimension.heightRange.max + SKY_BUFFER; y += 64) {
-          const verticalDistance = Math.abs(y + 32 - player.location.y);
-          const id = `v4:${edge.key}:${y}`;
-          const wall = {
-            dimension,
-            id,
-            x: edge.x,
-            y,
-            z: edge.z,
-            rotation: edge.axis === "x" ? 0 : 90,
-            priority: verticalDistance + horizontalDistance * 0.5,
-          };
-          const previous = wanted.get(id);
-          if (!previous || wall.priority < previous.priority) wanted.set(id, wall);
-        }
+        const id = `v5:${edge.key}`;
+        const wall = {
+          dimension,
+          id,
+          x: edge.x,
+          y: anchorAltitude(dimension, player.location.y),
+          z: edge.z,
+          rotation: edge.axis === "x" ? 0 : 90,
+          priority: horizontalDistance,
+        };
+        const previous = wanted.get(id);
+        if (!previous || wall.priority < previous.priority) wanted.set(id, wall);
       }
     }
     const found = new Set<string>();
@@ -118,6 +123,7 @@ export function refreshWalls() {
       spawnBudget--;
     } catch (error) {
       if (entity) entity.remove();
+      if (error instanceof Error && error.name === "LocationOutOfWorldBoundariesError") continue;
       // Resource/behavior load failures must be visible, rather than silently hidden.
       if (system.currentTick - failedAt >= 200) {
         console.warn(`[Chunklock] Could not create border wall: ${error}`);
