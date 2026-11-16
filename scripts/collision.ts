@@ -306,6 +306,39 @@ function checkPlayers() {
   }
 }
 
+/**
+ * Clears cached and persisted collision safe checkpoints for a single player or all players.
+ */
+export function resetCollisionCheckpoints(player?: Player) {
+  if (player) {
+    previousSafePositions.delete(player.id);
+    lastPersisted.delete(player.id);
+    nextFallbackAttempt.delete(player.id);
+    pendingDimensionArrivals.delete(player.id);
+    try {
+      player.setDynamicProperty(SAFE_POSITIONS_PROPERTY, undefined);
+    } catch {
+      /* Ignore players unavailable during reset cleanup. */
+    }
+    return;
+  }
+  previousSafePositions.clear();
+  lastPersisted.clear();
+  nextFallbackAttempt.clear();
+  pendingDimensionArrivals.clear();
+  try {
+    for (const connected of world.getAllPlayers()) {
+      try {
+        connected.setDynamicProperty(SAFE_POSITIONS_PROPERTY, undefined);
+      } catch {
+        /* Ignore disconnected players during reset cleanup. */
+      }
+    }
+  } catch {
+    /* Ignore enumeration failures in partial mocks. */
+  }
+}
+
 // Mirrors Java's post_tick_player checkpoint plus collision/player_chunk_collision.
 export function startCollision() {
   checkPlayers();

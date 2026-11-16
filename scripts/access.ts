@@ -35,6 +35,48 @@ export function getDimensionUnlockedCount(dimension: string): number {
 }
 
 /**
+ * Returns the global total of paid/auto unlocks recorded across all dimensions.
+ */
+export function getTotalUnlockedCount(): number {
+  return readCount(world, "chunklock:progress:unlocked:total");
+}
+
+/**
+ * Returns the personal total of paid chunk unlocks credited to `player`.
+ */
+export function getPlayerUnlockedCount(player: Player): number {
+  return readCount(player, "chunklock:progress:player:unlocked:total");
+}
+
+/**
+ * Returns the global reroll counter across the world.
+ */
+export function getWorldRerolledCount(): number {
+  return readCount(world, "chunklock:progress:rerolled:total");
+}
+
+/**
+ * Returns the personal reroll counter recorded on `player`.
+ */
+export function getPlayerRerolledCount(player: Player): number {
+  return readCount(player, "chunklock:progress:rerolled:total");
+}
+
+/**
+ * Reads whether milestone center-screen unlock titles are hidden for `player`.
+ */
+export function getHideUnlockTitle(player: Player): boolean {
+  return player.getDynamicProperty("chunklock:hide_unlock_title") === true;
+}
+
+/**
+ * Sets whether milestone center-screen unlock titles are hidden for `player`.
+ */
+export function setHideUnlockTitle(player: Player, hidden: boolean) {
+  player.setDynamicProperty("chunklock:hide_unlock_title", hidden ? true : undefined);
+}
+
+/**
  * Formats a dimension ID (for example `minecraft:the_end`) for player-facing notices.
  */
 export function formatDimensionDisplayName(dimensionId: string): string {
@@ -141,6 +183,17 @@ export function autoUnlockChunk(dimension: string, x: number, z: number): boolea
  */
 export function openExemptChunk(dimension: string, x: number, z: number): boolean {
   return applyUnlockedState([], dimension, x, z);
+}
+
+/**
+ * Increments world and player reroll counters for `/chunklock:reroll`.
+ */
+export function recordReroll(player: Player) {
+  const updates = [
+    counterUpdate(world, "chunklock:progress:rerolled:total"),
+    counterUpdate(player, "chunklock:progress:rerolled:total"),
+  ];
+  for (const [apply] of updates) apply();
 }
 
 /**

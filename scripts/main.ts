@@ -1,14 +1,16 @@
 import { system, world } from "@minecraft/server";
 import { formatGlobalJoinNotice } from "./access.js";
 import { startChunks } from "./chunks.js";
-import { startProtection } from "./protection.js";
-import { startWalls } from "./walls.js";
-import { startProjectiles } from "./projectiles.js";
-import { startWallDiagnostics } from "./wall-diagnostics.js";
 import { startCollision } from "./collision.js";
+import { startCommands } from "./commands.js";
 import { startRequirementDisplays } from "./displays.js";
 import { startPayments } from "./payment.js";
+import { startProjectiles } from "./projectiles.js";
+import { startProtection } from "./protection.js";
+import { startWallDiagnostics } from "./wall-diagnostics.js";
+import { startWalls } from "./walls.js";
 
+startCommands();
 startProtection();
 system.run(() => {
   startWallDiagnostics();
