@@ -116,7 +116,7 @@ function reportFailure(error: unknown, players: readonly Player2D[]) {
   console.warn(`[Chunklock] Could not create requirement display: ${error}`);
   for (const snapshot of players) {
     try {
-      snapshot.player.sendMessage("[Chunklock] Requirement display failed. Check both packs and the Content Log.");
+      snapshot.player.sendMessage("Requirement display failed. Check both packs and the Content Log.");
     } catch {
       /* The player may have left during the refresh. */
     }

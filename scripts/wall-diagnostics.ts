@@ -34,7 +34,7 @@ export function startWallDiagnostics() {
       const normalized = event.message.trim().toLowerCase();
       const next = normalized === "on" ? true : normalized === "off" ? false : !isDebugEnabled();
       setDebugEnabled(next);
-      const status = `[Chunklock] Debug mode ${next ? "enabled" : "disabled"}.`;
+      const status = `Debug mode ${next ? "enabled" : "disabled"}.`;
       if (event.sourceEntity) {
         try {
           (event.sourceEntity as { sendMessage?: (m: string) => void }).sendMessage?.(status);

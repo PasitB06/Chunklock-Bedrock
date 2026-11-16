@@ -23,7 +23,7 @@ system.run(() => {
 world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
   if (initialSpawn) {
     system.run(() => {
-      player.sendMessage("[Chunklock] Bedrock add-on is ready.");
+      player.sendMessage("Bedrock add-on is ready.");
     });
   }
 });

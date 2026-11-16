@@ -38,7 +38,7 @@ Dependencies are already installed on the original development machine; use `npm
 1. Open **Minecraft for Windows / Bedrock** and create a new Creative test world.
 2. Activate **Chunklock Behavior** under **Behavior Packs -> My Packs / Available**.
 3. Confirm that **Chunklock Resources** is also active. The behavior pack declares this dependency.
-4. Enter the world and look for `[Chunklock] Bedrock add-on is ready.` in chat.
+4. Enter the world and look for `Bedrock add-on is ready.` in chat.
 5. Wait for nearby locked chunk borders and their requirement item/count labels. Right-click the centered item display with no matching item, then with matching items split across several inventory slots (including offhand) to check feedback and payment. The selected hotbar slot is consumed first; matching items are deducted from the inventory and offhand as needed, even in Creative mode. A barrier in the selected hand unlocks for testing and is preserved.
 
 The starter pins stable Script API `@minecraft/server` **2.6.0** and declares a minimum Bedrock version of **1.26.60**.

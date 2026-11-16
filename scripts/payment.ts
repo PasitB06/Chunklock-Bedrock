@@ -196,7 +196,7 @@ function finishUnlock(
       console.warn(`[Chunklock] Could not remove the completed requirement ${dimension}:${cx}:${cz}: ${error}`);
     }
     soundAndParticle(target, "block.end_portal_frame.fill", 1.5, "minecraft:totem_particle");
-    actionBar(player, "[Chunklock] Chunk unlocked.");
+    actionBar(player, "Chunk unlocked.");
     refreshAfterPayment(true);
     return true;
   } catch (error) {
@@ -205,7 +205,7 @@ function finishUnlock(
       rollbackPayment?.();
     }
     console.error(`[Chunklock] Could not unlock chunk ${dimension}:${cx}:${cz}: ${error}`);
-    actionBar(player, "[Chunklock] Payment could not be completed. Try again.");
+    actionBar(player, "Payment could not be completed. Try again.");
     refreshAfterPayment(false);
     return false;
   }
@@ -227,13 +227,13 @@ function processClick(player: Player, target: Entity) {
   const lockedX = cx as number;
   const lockedZ = cz as number;
   if (isOpenCell(dimension, lockedX, lockedZ)) {
-    actionBar(player, "[Chunklock] This chunk is already open.");
+    actionBar(player, "This chunk is already open.");
     refreshAfterPayment(false);
     return;
   }
   const requirement = getChunkRequirement(dimension, lockedX, lockedZ);
   if (!requirement || requirement.remainingCost <= 0) {
-    actionBar(player, "[Chunklock] This chunk has no payable requirement.");
+    actionBar(player, "This chunk has no payable requirement.");
     refreshAfterPayment(false);
     return;
   }
@@ -250,14 +250,14 @@ function processClick(player: Player, target: Entity) {
     sources = matchingSources(player, requirement.itemId, equippable);
   } catch (error) {
     console.warn(`[Chunklock] Could not inspect the player's inventory: ${error}`);
-    actionBar(player, "[Chunklock] Could not read your inventory. Try again.");
+    actionBar(player, "Could not read your inventory. Try again.");
     return;
   }
 
   const totalAvailable = sources.reduce((total, source) => total + source.stack.amount, 0);
   if (totalAvailable <= 0) {
     soundAndParticle(target, "note.didgeridoo", 0.7, "minecraft:basic_smoke_particle");
-    actionBar(player, `[Chunklock] This chunk requires ${itemName} × ${requirement.remainingCost}.`);
+    actionBar(player, `This chunk requires ${itemName} × ${requirement.remainingCost}.`);
     return;
   }
 
@@ -267,20 +267,20 @@ function processClick(player: Player, target: Entity) {
 
   try {
     if (!setChunkRequirementRemainingCost(dimension, lockedX, lockedZ, remainingCost)) {
-      actionBar(player, "[Chunklock] Payment could not be completed. Try again.");
+      actionBar(player, "Payment could not be completed. Try again.");
       return;
     }
   } catch (error) {
     restoreRequirement(dimension, lockedX, lockedZ, requirement.remainingCost);
     console.warn(`[Chunklock] Could not save payment for ${dimension}:${lockedX}:${lockedZ}: ${error}`);
-    actionBar(player, "[Chunklock] Payment could not be completed. Try again.");
+    actionBar(player, "Payment could not be completed. Try again.");
     return;
   }
 
   const rollbackPayment = applyPaymentEntries(entries);
   if (!rollbackPayment) {
     restoreRequirement(dimension, lockedX, lockedZ, requirement.remainingCost);
-    actionBar(player, "[Chunklock] Could not update your inventory. Try again.");
+    actionBar(player, "Could not update your inventory. Try again.");
     return;
   }
 
@@ -290,7 +290,7 @@ function processClick(player: Player, target: Entity) {
   }
 
   soundAndParticle(target, "block.end_portal_frame.fill", 1.5, "minecraft:totem_particle");
-  actionBar(player, `[Chunklock] Paid ${paid} ${itemName}. ${remainingCost} remaining.`);
+  actionBar(player, `Paid ${paid} ${itemName}. ${remainingCost} remaining.`);
   refreshAfterPayment(false);
 }
 

@@ -177,7 +177,7 @@ export function refreshWalls() {
       if (system.currentTick - failedAt >= 200) {
         console.warn(`[Chunklock] Could not create border wall: ${error}`);
         for (const snapshot of players)
-          snapshot.player.sendMessage("[Chunklock] Wall failed to load. Check both packs and the Content Log.");
+          snapshot.player.sendMessage("Wall failed to load. Check both packs and the Content Log.");
         failedAt = system.currentTick;
       }
       break;

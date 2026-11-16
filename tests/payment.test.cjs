@@ -246,7 +246,7 @@ test("empty and incorrect inventory items are retained and report the requiremen
   const emptyClick = harness.click();
   assert.equal(emptyClick.cancel, true);
   harness.flush();
-  assert.match(player.actions.at(-1), /Oak Log × 10/);
+  assert.equal(player.actions.at(-1), "This chunk requires Oak Log × 10.");
   assert.equal(savedRequirement(harness).remainingCost, 10);
 
   harness.system.currentTick += 5;
@@ -273,6 +273,7 @@ test("one click pays across multiple inventory stacks with excess left in the la
   assert.equal(itemAt(harness.activePlayers[0], 0), undefined);
   assert.equal(itemAt(harness.activePlayers[0], 1), undefined);
   assert.equal(itemAt(harness.activePlayers[0], 2).amount, 14);
+  assert.equal(harness.activePlayers[0].actions.at(-1), "Chunk unlocked.");
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), true);
   assert.equal(harness.props.get("chunklock:progress:unlocked:minecraft:overworld"), 1);
   assert.equal(harness.props.get("chunklock:progress:unlocked:total"), 1);
