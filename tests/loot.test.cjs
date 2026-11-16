@@ -68,7 +68,7 @@ function makeRequirementHarness({
   };
   const world = {
     getDynamicProperty: (key) => props.get(key),
-    setDynamicProperty: (key, value) => props.set(key, value),
+    setDynamicProperty: (key, value) => (value === undefined ? props.delete(key) : props.set(key, value)),
     getDynamicPropertyIds: () => [...props.keys()],
     getAllPlayers: () => players,
   };
@@ -424,4 +424,51 @@ test("chunk scan uses dimension 2D lookup plane at high altitude and disables pr
   assert.ok(blockQueries.every((loc) => loc.y === 128), "Overworld chunk checks use fixed Y=128 plane");
   assert.equal(particles, 0, "debug flame particles are off by default");
   assert.equal(actions.length, 0, "prototype action bar is off by default");
+});
+
+test("End chunk scan exempts crystal-free central chunks while locking crystal and outer-island chunks", () => {
+  const properties = {
+    "chunklock:open:minecraft:the_end:0:0": true,
+    "chunklock:cell:minecraft:the_end:0:0": 1,
+    "chunklock:cell:minecraft:the_end:1:0": 1,
+    "chunklock:cell:minecraft:the_end:2:0": 1,
+    "chunklock:cell:minecraft:the_end:64:0": 1,
+  };
+  const harness = makeRequirementHarness({
+    properties,
+    dimensionId: "minecraft:the_end",
+    biomeId: "minecraft:the_end",
+  });
+  // Crystal sits at (31.9, 64, 8): inside chunk (1, 0) ONLY if edge inset wasn't checked? Wait:
+  // Chunk (1, 0) spans [16.25, 31.75] and Chunk (2, 0) spans [32.25, 47.75].
+  // Place one crystal cleanly inside (2, 0) at x = 35, z = 8 and one on the boundary at x = 16.1 (outside inset of (1, 0)).
+  const crystals = [
+    { location: { x: 16.1, y: 70, z: 8 } },
+    { location: { x: 35, y: 80, z: 8 } },
+  ];
+  harness.dimension.getEntities = ({ type }) => (type === "minecraft:ender_crystal" ? crystals : []);
+
+  const centralPlayer = {
+    dimension: harness.dimension,
+    location: { x: 24, y: 64, z: 8 },
+    onScreenDisplay: { setActionBar: () => {} },
+  };
+  const outerPlayer = {
+    dimension: harness.dimension,
+    location: { x: 1032, y: 64, z: 8 },
+    onScreenDisplay: { setActionBar: () => {} },
+  };
+  harness.players.push(centralPlayer, outerPlayer);
+  const intervals = [];
+  harness.loadChunks({ runInterval: (callback, ticks) => intervals.push({ callback, ticks }) });
+
+  intervals[0].callback();
+  assert.equal(harness.props.get("chunklock:open:minecraft:the_end:1:0"), true, "crystal-free central chunk opens");
+  assert.equal(harness.props.has("chunklock:req:minecraft:the_end:1:0"), false, "exempt central chunk needs no cost");
+  assert.equal(harness.props.has("chunklock:open:minecraft:the_end:2:0"), false, "crystal chunk stays locked");
+  assert.equal(harness.props.has("chunklock:req:minecraft:the_end:2:0"), true, "crystal chunk rolls requirement");
+  assert.equal(harness.props.has("chunklock:open:minecraft:the_end:64:0"), false, "outer End island stays locked");
+  assert.equal(harness.props.has("chunklock:req:minecraft:the_end:64:0"), true, "outer End island rolls requirement");
+  assert.equal(harness.props.has("chunklock:progress:unlocked:minecraft:the_end"), false, "exempt opens grant no credit");
+  assert.equal(harness.props.has("chunklock:progress:unlocked:total"), false, "exempt opens grant no total credit");
 });

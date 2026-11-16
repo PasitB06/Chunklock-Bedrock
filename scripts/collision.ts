@@ -1,9 +1,23 @@
-import { GameMode, Player, Vector3, system, world } from "@minecraft/server";
-import { isLocked, seedPlayer } from "./access.js";
+import {
+  Dimension,
+  GameMode,
+  Player,
+  PlayerDimensionChangeAfterEvent,
+  PlayerSpawnAfterEvent,
+  Vector3,
+  system,
+  world,
+} from "@minecraft/server";
+import { autoUnlockChunk, isLocked, markPlayerSeeded, openExemptChunk, seedPlayer } from "./access.js";
+import { refreshRequirementDisplays } from "./displays.js";
+import { chunkContainsEndCrystal, collectEndCrystalPositions, END_DIMENSION_ID, isCentralEndChunk } from "./end.js";
+import { chunkAt } from "./regions.js";
 import { getOpenCellCoords } from "./state-cache.js";
+import { refreshWalls } from "./walls.js";
 
 const SAFE_POSITIONS_PROPERTY = "chunklock:collision:safe_positions";
 const PERSIST_INTERVAL = 20;
+const MAX_ARRIVAL_ATTEMPTS = 10;
 
 type SafePosition = {
   dimensionId: string;
@@ -11,9 +25,16 @@ type SafePosition = {
   rotation: { x: number; y: number };
 };
 
+type PendingArrival = {
+  dimension: Dimension;
+  location: Vector3;
+  attemptsRemaining: number;
+};
+
 const previousSafePositions = new Map<string, Map<string, SafePosition>>();
 const lastPersisted = new Map<string, string>();
 const nextFallbackAttempt = new Map<string, number>();
+const pendingDimensionArrivals = new Map<string, PendingArrival>();
 
 function isValidPosition(value: unknown): value is SafePosition {
   if (!value || typeof value !== "object") return false;
@@ -131,6 +152,103 @@ function returnPlayer(player: Player, position: SafePosition) {
   }
 }
 
+function safeRefreshPresentation() {
+  try {
+    refreshWalls();
+  } catch {
+    /* Presentation refresh must not interrupt player collision or spawn handling. */
+  }
+  try {
+    refreshRequirementDisplays();
+  } catch {
+    /* Presentation refresh must not interrupt player collision or spawn handling. */
+  }
+}
+
+function isDestinationReady(dimension: Dimension, location: Vector3): boolean {
+  if (typeof dimension.getBlock !== "function") return true;
+  try {
+    return Boolean(
+      dimension.getBlock({ x: Math.floor(location.x), y: Math.floor(location.y), z: Math.floor(location.z) })
+    );
+  } catch {
+    return false;
+  }
+}
+
+function completeDimensionArrival(
+  player: Player,
+  dimension: Dimension,
+  location: Vector3,
+  forceUnlock: boolean
+): boolean {
+  const dimensionId = dimension.id;
+  if (!forceUnlock && !isDestinationReady(dimension, location)) return false;
+
+  const cx = chunkAt(location.x);
+  const cz = chunkAt(location.z);
+  if (isLocked(dimensionId, location.x, location.z)) {
+    if (dimensionId === END_DIMENSION_ID && isCentralEndChunk(cx, cz)) {
+      const crystals = collectEndCrystalPositions(dimension);
+      if (crystals.status === "unavailable" && !forceUnlock) return false;
+      if (crystals.status === "ready" && !chunkContainsEndCrystal(crystals.crystals, cx, cz)) {
+        openExemptChunk(dimensionId, cx, cz);
+      } else {
+        autoUnlockChunk(dimensionId, cx, cz);
+      }
+    } else {
+      autoUnlockChunk(dimensionId, cx, cz);
+    }
+  }
+
+  markPlayerSeeded(player, dimensionId);
+  positionsFor(player).set(dimensionId, {
+    dimensionId,
+    location: { x: location.x, y: location.y, z: location.z },
+    rotation: player.getRotation(),
+  });
+  safeRefreshPresentation();
+  return true;
+}
+
+function handleDimensionChange(event: PlayerDimensionChangeAfterEvent) {
+  const { player, toDimension, toLocation } = event;
+  if (completeDimensionArrival(player, toDimension, toLocation, false)) {
+    pendingDimensionArrivals.delete(player.id);
+    return;
+  }
+  pendingDimensionArrivals.set(player.id, {
+    dimension: toDimension,
+    location: { x: toLocation.x, y: toLocation.y, z: toLocation.z },
+    attemptsRemaining: MAX_ARRIVAL_ATTEMPTS,
+  });
+}
+
+function handlePlayerSpawn(event: PlayerSpawnAfterEvent) {
+  if (event.initialSpawn) return;
+  const { player } = event;
+  seedPlayer(player);
+  const positions = positionsFor(player);
+  const current = capture(player);
+  positions.delete(current.dimensionId);
+
+  if (isOpenPosition(current)) {
+    positions.set(current.dimensionId, current);
+    return;
+  }
+
+  const fallback = findFallback(player);
+  if (fallback) {
+    positions.set(fallback.dimensionId, fallback);
+    returnPlayer(player, fallback);
+    return;
+  }
+
+  openExemptChunk(current.dimensionId, chunkAt(current.location.x), chunkAt(current.location.z));
+  positions.set(current.dimensionId, current);
+  safeRefreshPresentation();
+}
+
 function checkPlayers() {
   const online = new Set<string>();
   const currentTick = system.currentTick;
@@ -138,6 +256,22 @@ function checkPlayers() {
   for (let index = 0; index < players.length; index++) {
     const player = players[index];
     online.add(player.id);
+
+    const pending = pendingDimensionArrivals.get(player.id);
+    if (pending) {
+      if (player.dimension.id === pending.dimension.id) {
+        const forceUnlock = pending.attemptsRemaining <= 1;
+        if (completeDimensionArrival(player, pending.dimension, pending.location, forceUnlock)) {
+          pendingDimensionArrivals.delete(player.id);
+        } else {
+          pending.attemptsRemaining--;
+          continue;
+        }
+      } else {
+        pendingDimensionArrivals.delete(player.id);
+      }
+    }
+
     seedPlayer(player);
 
     const positions = positionsFor(player);
@@ -167,6 +301,7 @@ function checkPlayers() {
       previousSafePositions.delete(playerId);
       lastPersisted.delete(playerId);
       nextFallbackAttempt.delete(playerId);
+      pendingDimensionArrivals.delete(playerId);
     }
   }
 }
@@ -175,9 +310,12 @@ function checkPlayers() {
 export function startCollision() {
   checkPlayers();
   system.runInterval(checkPlayers, 1);
+  world.afterEvents.playerDimensionChange?.subscribe(handleDimensionChange);
+  world.afterEvents.playerSpawn?.subscribe(handlePlayerSpawn);
   world.afterEvents.playerLeave.subscribe(({ playerId }) => {
     previousSafePositions.delete(playerId);
     lastPersisted.delete(playerId);
     nextFallbackAttempt.delete(playerId);
+    pendingDimensionArrivals.delete(playerId);
   });
 }

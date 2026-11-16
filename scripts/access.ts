@@ -1,6 +1,12 @@
 import { Player, world } from "@minecraft/server";
 import { chunkAt } from "./regions.js";
-import { isOpenCached, isPlayerSeededCached, markOpenCached, markPlayerSeededCached } from "./state-cache.js";
+import {
+  deleteRequirementCached,
+  isOpenCached,
+  isPlayerSeededCached,
+  markOpenCached,
+  markPlayerSeededCached,
+} from "./state-cache.js";
 
 const key = (dimension: string, x: number, z: number) => `chunklock:open:${dimension}:${x}:${z}`;
 const TRACKED_DIMENSIONS = ["minecraft:overworld", "minecraft:nether", "minecraft:the_end"] as const;
@@ -58,16 +64,18 @@ function counterUpdate(owner: Player | typeof world, propertyId: string): [() =>
   return [() => owner.setDynamicProperty(propertyId, next), () => owner.setDynamicProperty(propertyId, previous)];
 }
 
-export function unlockChunk(player: Player, dimension: string, x: number, z: number): boolean {
+function clearRequirementProperty(dimension: string, x: number, z: number) {
+  const requirementKey = `chunklock:req:${dimension}:${x}:${z}`;
+  if (world.getDynamicProperty(requirementKey) !== undefined) {
+    world.setDynamicProperty(requirementKey, undefined);
+  }
+  deleteRequirementCached(dimension, x, z);
+}
+
+function applyUnlockedState(updates: [() => void, () => void][], dimension: string, x: number, z: number): boolean {
   const openProperty = key(dimension, x, z);
   if (isOpenCached(dimension, x, z)) return false;
 
-  const updates = [
-    counterUpdate(world, `chunklock:progress:unlocked:${dimension}`),
-    counterUpdate(world, "chunklock:progress:unlocked:total"),
-    counterUpdate(player, `chunklock:progress:player:unlocked:${dimension}`),
-    counterUpdate(player, "chunklock:progress:player:unlocked:total"),
-  ];
   const applied: (() => void)[] = [];
   try {
     for (const [apply, rollback] of updates) {
@@ -76,17 +84,71 @@ export function unlockChunk(player: Player, dimension: string, x: number, z: num
     }
     world.setDynamicProperty(openProperty, true);
     markOpenCached(dimension, x, z);
+    try {
+      clearRequirementProperty(dimension, x, z);
+    } catch {
+      /* Removing an optional stale requirement must not roll back an already opened chunk. */
+    }
     return true;
   } catch (error) {
     for (const rollback of applied.reverse()) {
       try {
         rollback();
       } catch {
-        // Preserve the original dynamic-property error for the payment handler.
+        // Preserve the original dynamic-property error for the caller.
       }
     }
     throw error;
   }
+}
+
+/**
+ * Unlocks a chunk for a paying player, crediting both world and personal totals.
+ */
+export function unlockChunk(player: Player, dimension: string, x: number, z: number): boolean {
+  return applyUnlockedState(
+    [
+      counterUpdate(world, `chunklock:progress:unlocked:${dimension}`),
+      counterUpdate(world, "chunklock:progress:unlocked:total"),
+      counterUpdate(player, `chunklock:progress:player:unlocked:${dimension}`),
+      counterUpdate(player, "chunklock:progress:player:unlocked:total"),
+    ],
+    dimension,
+    x,
+    z
+  );
+}
+
+/**
+ * Unlocks a chunk automatically without a payer (for example on portal arrival),
+ * crediting only world totals.
+ */
+export function autoUnlockChunk(dimension: string, x: number, z: number): boolean {
+  return applyUnlockedState(
+    [
+      counterUpdate(world, `chunklock:progress:unlocked:${dimension}`),
+      counterUpdate(world, "chunklock:progress:unlocked:total"),
+    ],
+    dimension,
+    x,
+    z
+  );
+}
+
+/**
+ * Opens an exempt chunk (starting area, crystal-free central End island, or spreadplayers landing)
+ * without incrementing world or player unlock counters.
+ */
+export function openExemptChunk(dimension: string, x: number, z: number): boolean {
+  return applyUnlockedState([], dimension, x, z);
+}
+
+/**
+ * Marks a player as seeded in the specified dimension so `seedPlayer` does not repeat work.
+ */
+export function markPlayerSeeded(player: Player, dimensionId: string) {
+  player.setDynamicProperty(`chunklock:seeded_visuals:${dimensionId}`, true);
+  if (typeof player.id === "string") markPlayerSeededCached(player.id, dimensionId);
 }
 
 // Existing marker records remain unchanged. Access is a separate persistent layer.
@@ -100,8 +162,6 @@ export function seedPlayer(player: Player) {
   }
   const cx = chunkAt(player.location.x);
   const cz = chunkAt(player.location.z);
-  world.setDynamicProperty(key(dimensionId, cx, cz), true);
-  markOpenCached(dimensionId, cx, cz);
-  player.setDynamicProperty(id, true);
-  if (typeof player.id === "string") markPlayerSeededCached(player.id, dimensionId);
+  openExemptChunk(dimensionId, cx, cz);
+  markPlayerSeeded(player, dimensionId);
 }

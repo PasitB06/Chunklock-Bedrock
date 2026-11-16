@@ -696,3 +696,109 @@ test("projectiles stay tracked across large vertical gaps and drop beyond 96 hor
   tick();
   assert.equal(removed, 1, "2D horizontal tracking keeps high-altitude arrows covered");
 });
+
+test("dimension changes auto-unlock locked arrivals and respawns clear stale death checkpoints", () => {
+  const props = new Map([
+    ["chunklock:req:minecraft:nether:3:0", JSON.stringify({ itemId: "minecraft:stone", remainingCost: 4 })],
+  ]);
+  const playerProps = new Map();
+  const intervals = [];
+  const teleports = [];
+  let onDimensionChange;
+  let onPlayerSpawn;
+  let netherReady = false;
+
+  const makeDim = (id, readyCheck = () => true) => ({
+    id,
+    heightRange: { min: 0, max: 256 },
+    getBlock: () => (readyCheck() ? {} : undefined),
+    getEntities: () => [],
+    getTopmostBlock: ({ x, z }) => ({ location: { x: Math.floor(x), y: 63, z: Math.floor(z) } }),
+  });
+  const overworld = makeDim("minecraft:overworld");
+  const nether = makeDim("minecraft:nether", () => netherReady);
+  const end = makeDim("minecraft:the_end");
+  const dims = { "minecraft:overworld": overworld, "minecraft:nether": nether, "minecraft:the_end": end };
+
+  const player = {
+    id: "p1",
+    dimension: overworld,
+    location: { x: 8.5, y: 64, z: 8.5 },
+    getRotation: () => ({ x: 0, y: 0 }),
+    getGameMode: () => "Survival",
+    getSpawnPoint: () => undefined,
+    getDynamicProperty: (k) => playerProps.get(k),
+    setDynamicProperty: (k, v) => playerProps.set(k, v),
+    teleport: (loc, opts) => {
+      teleports.push({ dimensionId: opts.dimension?.id, location: { ...loc } });
+      player.dimension = opts.dimension ?? player.dimension;
+      player.location = { ...loc };
+    },
+  };
+  const api = {
+    GameMode: { Spectator: "Spectator", Survival: "Survival" },
+    world: {
+      getAllPlayers: () => [player],
+      getDimension: (id) => dims[id],
+      getDynamicProperty: (k) => props.get(k),
+      setDynamicProperty: (k, v) => (v === undefined ? props.delete(k) : props.set(k, v)),
+      getDynamicPropertyIds: () => [...props.keys()],
+      afterEvents: {
+        playerDimensionChange: { subscribe: (fn) => (onDimensionChange = fn) },
+        playerSpawn: { subscribe: (fn) => (onPlayerSpawn = fn) },
+        playerLeave: { subscribe: () => {} },
+      },
+    },
+    system: {
+      currentTick: 1,
+      runInterval: (fn) => intervals.push(fn),
+    },
+  };
+
+  const moduleCache = {
+    walls: { refreshWalls: () => {} },
+    displays: { refreshRequirementDisplays: () => {} },
+  };
+  load("collision", api, moduleCache).startCollision();
+  const tick = intervals[0];
+
+  // Enter Nether before destination chunk terrain finishes loading: queued, not teleported back to Overworld.
+  player.dimension = nether;
+  player.location = { x: 52, y: 64, z: 8 };
+  onDimensionChange({ player, toDimension: nether, toLocation: { x: 52, y: 64, z: 8 } });
+  api.system.currentTick = 2;
+  tick();
+  assert.equal(teleports.length, 0, "pending dimension arrival must not pull player back");
+
+  // Once destination chunk loads, next tick auto-unlocks it and clears any stale requirement.
+  netherReady = true;
+  api.system.currentTick = 3;
+  tick();
+  assert.equal(props.get("chunklock:open:minecraft:nether:3:0"), true);
+  assert.equal(props.has("chunklock:req:minecraft:nether:3:0"), false);
+  assert.equal(props.get("chunklock:progress:unlocked:minecraft:nether"), 1);
+  assert.equal(props.get("chunklock:progress:unlocked:total"), 1);
+  assert.equal(playerProps.has("chunklock:progress:player:unlocked:total"), false, "auto unlock credits world only");
+
+  // Enter The End central platform (chunk 6, 0) without crystals -> exempt without world unlock credit.
+  player.dimension = end;
+  player.location = { x: 100.5, y: 49, z: 0.5 };
+  onDimensionChange({ player, toDimension: end, toLocation: { x: 100.5, y: 49, z: 0.5 } });
+  assert.equal(props.get("chunklock:open:minecraft:the_end:6:0"), true);
+  assert.equal(props.has("chunklock:progress:unlocked:minecraft:the_end"), false);
+
+  // Respawn in Overworld far from death point (chunk 0, 0) vs a later unlocked chunk (2, 0).
+  load("access", api, moduleCache).unlockChunk(player, "minecraft:overworld", 2, 0);
+  player.dimension = overworld;
+  player.location = { x: 40, y: 64, z: 8 };
+  api.system.currentTick = 4;
+  tick();
+  // Die and respawn at (0, 0) spawn, then step into an adjacent locked chunk (0, 1) -> must pull back to (0, 0), not (2, 0)!
+  player.location = { x: 8.5, y: 64, z: 8.5 };
+  onPlayerSpawn({ player, initialSpawn: false });
+  player.location = { x: 8.5, y: 64, z: 18 };
+  api.system.currentTick = 5;
+  tick();
+  assert.equal(teleports.length, 1);
+  assert.deepEqual(teleports[0].location, { x: 8.5, y: 64, z: 8.5 });
+});

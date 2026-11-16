@@ -1,5 +1,12 @@
 import { system, world } from "@minecraft/server";
 import { isOpenCell } from "./access.js";
+import {
+  collectEndCrystalPositions,
+  END_DIMENSION_ID,
+  EndCrystalLookup,
+  isCentralEndChunk,
+  tryExemptCentralEndChunk,
+} from "./end.js";
 import { refreshActionNotice } from "./notices.js";
 import { ensureChunkRequirement, getChunkRequirement } from "./requirements.js";
 import {
@@ -30,6 +37,7 @@ export function runChunkScan() {
   let requirementBudget = 8;
   const processed = new Set<string>();
   const requirementsProcessed = new Set<string>();
+  let endCrystalLookup: EndCrystalLookup | undefined;
   for (const snapshot of getPlayers2D()) {
     const { player, dimension, dimensionId, x: px, y: py, z: pz, cx, cz } = snapshot;
     const lookupY = lookupPlaneY(dimensionId);
@@ -73,9 +81,19 @@ export function runChunkScan() {
         if (!hasCellRecord(dimensionId, x, z)) continue;
         const key = cellKey(dimensionId, x, z);
         if (!isCellCompleted(dimensionId, x, z)) {
+          let endDeferred = false;
           if (Math.abs(x * 16 + 8 - px) <= 24 && Math.abs(z * 16 + 8 - pz) <= 24 && !requirementsProcessed.has(key)) {
             const hasRequirement = getChunkRequirement(dimensionId, x, z) !== undefined;
-            if (hasRequirement || requirementBudget > 0) {
+            if (
+              !isOpenCell(dimensionId, x, z) &&
+              !hasRequirement &&
+              dimensionId === END_DIMENSION_ID &&
+              isCentralEndChunk(x, z)
+            ) {
+              endCrystalLookup ??= collectEndCrystalPositions(dimension);
+              endDeferred = tryExemptCentralEndChunk(dimension, x, z, endCrystalLookup) === "deferred";
+            }
+            if (!endDeferred && !isOpenCell(dimensionId, x, z) && (hasRequirement || requirementBudget > 0)) {
               requirementsProcessed.add(key);
               const result = ensureChunkRequirement(dimension, x, z);
               if (!hasRequirement && result !== "skipped" && result !== "deferred") requirementBudget--;
@@ -84,7 +102,7 @@ export function runChunkScan() {
           }
           const neighborsDone = CARDINALS.every(([dx, dz]) => hasCellRecord(dimensionId, x + dx, z + dz));
           const reqReady = isOpenCell(dimensionId, x, z) || getChunkRequirement(dimensionId, x, z) !== undefined;
-          if (neighborsDone && reqReady) markCellCompleted(dimensionId, x, z);
+          if (!endDeferred && neighborsDone && reqReady) markCellCompleted(dimensionId, x, z);
         }
         if (isDebugEnabled()) {
           try {
