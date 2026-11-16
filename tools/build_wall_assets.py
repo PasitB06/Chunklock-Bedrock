@@ -66,7 +66,7 @@ write(RP / 'entity/border_wall.entity.json', {
     'format_version': '1.21.80',
     'minecraft:client_entity': {'description': {
         'identifier': 'chunklock:border_wall',
-        'materials': {'default': 'chunklock_border_wall'},
+        'materials': {'default': 'chunklock_border_wall', 'vibrant': 'entity_alphablend'},
         'textures': {'default': 'textures/entity/border_wall',
                      'vibrant': 'textures/entity/border_wall_vibrant'},
         'geometry': {'default': 'geometry.chunklock.border_wall'},
@@ -78,7 +78,8 @@ write(RP / 'entity/border_wall.entity.json', {
 write(RP / 'render_controllers/border_wall.render_controllers.json', {
     'format_version': '1.8.0',
     'render_controllers': {'controller.render.chunklock.border_wall': {
-        'geometry': 'Geometry.default', 'materials': [{'*': 'Material.default'}],
+        'geometry': 'Geometry.default',
+        'materials': [{'*': "query.graphics_mode_is_any('deferred') ? Material.vibrant : Material.default"}],
         'textures': ["query.graphics_mode_is_any('deferred') ? Texture.vibrant : Texture.default"],
         'ignore_lighting': True
     }}

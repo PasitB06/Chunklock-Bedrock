@@ -510,3 +510,22 @@ test("collision allows free movement within open chunks and teleports back on lo
   tick();
   assert.equal(teleports.length, 2, "Spectator must bypass locked chunk pullback");
 });
+
+test("deferred walls use vanilla blending while classic keeps its overlap material", () => {
+  const root = path.join(__dirname, "..");
+  const read = (file) => JSON.parse(fs.readFileSync(path.join(root, file), "utf8"));
+  const entity = read("resource_packs/chunklock/entity/border_wall.entity.json")["minecraft:client_entity"].description;
+  const controller = read("resource_packs/chunklock/render_controllers/border_wall.render_controllers.json")
+    .render_controllers["controller.render.chunklock.border_wall"];
+  for (const mode of ["simple", "fancy", "deferred", "raytraced"]) {
+    const context = {
+      query: { graphics_mode_is_any: (...modes) => modes.includes(mode) ? 1 : 0 },
+      Material: entity.materials,
+      Texture: entity.textures,
+    };
+    const material = vm.runInNewContext(controller.materials[0]["*"], context);
+    const texture = vm.runInNewContext(controller.textures[0], context);
+    assert.equal(material, mode === "deferred" ? "entity_alphablend" : "chunklock_border_wall", mode);
+    assert.equal(texture, "textures/entity/border_wall" + (mode === "deferred" ? "_vibrant" : ""), mode);
+  }
+});
