@@ -27,6 +27,7 @@ import {
 import { resetCollisionCheckpoints } from "./collision.js";
 import { refreshRequirementDisplays } from "./displays.js";
 import { broadcastGlobalNotice, clearActionNotice, showActionNotice } from "./notices.js";
+import { resetProgressScoreboard } from "./progress.js";
 import { chunkAt } from "./regions.js";
 import {
   ChunklockDifficulty,
@@ -281,6 +282,7 @@ function handleReset(_origin: CustomCommandOrigin, confirmation: string): Custom
     invalidateStateCache();
     resetCollisionCheckpoints();
     for (const player of world.getAllPlayers()) seedPlayer(player);
+    resetProgressScoreboard();
     safeRefreshPresentation();
     broadcastGlobalNotice("Chunklock world state has been reset.");
   });

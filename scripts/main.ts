@@ -5,6 +5,7 @@ import { startCollision } from "./collision.js";
 import { startCommands } from "./commands.js";
 import { startRequirementDisplays } from "./displays.js";
 import { startPayments } from "./payment.js";
+import { startProgress } from "./progress.js";
 import { startProjectiles } from "./projectiles.js";
 import { startProtection } from "./protection.js";
 import { startWallDiagnostics } from "./wall-diagnostics.js";
@@ -14,6 +15,7 @@ startCommands();
 startProtection();
 system.run(() => {
   startWallDiagnostics();
+  startProgress();
   startCollision();
   startPayments();
   startProjectiles();

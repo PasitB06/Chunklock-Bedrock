@@ -49,6 +49,13 @@ export function getPlayerUnlockedCount(player: Player): number {
 }
 
 /**
+ * Returns the personal total of paid chunk unlocks credited to `player` in a specific dimension.
+ */
+export function getPlayerDimensionUnlockedCount(player: Player, dimension: string): number {
+  return readCount(player, `chunklock:progress:player:unlocked:${dimension}`);
+}
+
+/**
  * Returns the global reroll counter across the world.
  */
 export function getWorldRerolledCount(): number {

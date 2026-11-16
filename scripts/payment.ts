@@ -12,6 +12,7 @@ import {
 import { formatDimensionDisplayName, getDimensionUnlockedCount, isOpenCell, unlockChunk } from "./access.js";
 import { refreshRequirementDisplays } from "./displays.js";
 import { broadcastGlobalNotice, clearActionNotice, showActionNotice } from "./notices.js";
+import { handlePaidUnlockProgress } from "./progress.js";
 import {
   deleteChunkRequirement,
   formatItemDisplayName,
@@ -178,7 +179,8 @@ function finishUnlock(
   cx: number,
   cz: number,
   previousCost: number,
-  rollbackPayment?: () => void
+  rollbackPayment?: () => void,
+  sourceItemId?: string
 ) {
   try {
     if (!setChunkRequirementRemainingCost(dimension, cx, cz, 0)) {
@@ -201,6 +203,11 @@ function finishUnlock(
     const playerName = typeof player.name === "string" && player.name.trim().length > 0 ? player.name : "A player";
     showActionNotice(player, `${dimensionName} chunk #${unlockOrder} unlocked.`);
     broadcastGlobalNotice(`${playerName} unlocked ${dimensionName} chunk #${unlockOrder}.`);
+    try {
+      handlePaidUnlockProgress(player, dimension, sourceItemId);
+    } catch (error) {
+      console.warn(`[Chunklock] Could not update unlock progress/milestones: ${error}`);
+    }
     refreshAfterPayment(true);
     return true;
   } catch (error) {
@@ -289,7 +296,16 @@ function processClick(player: Player, target: Entity) {
   }
 
   if (remainingCost === 0) {
-    finishUnlock(player, target, dimension, lockedX, lockedZ, requirement.remainingCost, rollbackPayment);
+    finishUnlock(
+      player,
+      target,
+      dimension,
+      lockedX,
+      lockedZ,
+      requirement.remainingCost,
+      rollbackPayment,
+      requirement.sourceItemId
+    );
     return;
   }
 
