@@ -81,6 +81,7 @@ function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = 
   const scheduled = [];
   const sounds = [];
   const particles = [];
+  const worldMessages = [];
   let rejectContainerWriteAt = 0;
   let containerWrites = 0;
   const dimension = {
@@ -96,10 +97,12 @@ function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = 
     let offhandStack = heldOffhand?.clone();
     const player = {
       id,
+      name: id,
       dimension,
       selectedSlotIndex: 0,
       actions: [],
       messages: [],
+      titles: [],
       get mainhand() {
         return container.getItem(player.selectedSlotIndex);
       },
@@ -135,7 +138,10 @@ function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = 
         }
         return undefined;
       },
-      onScreenDisplay: { setActionBar: (text) => player.actions.push(text) },
+      onScreenDisplay: {
+        setActionBar: (text) => player.actions.push(text),
+        setTitle: (text) => player.titles.push(text),
+      },
       sendMessage: (text) => player.messages.push(text),
     };
     player.props = new Map();
@@ -166,6 +172,7 @@ function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = 
     },
     getAllPlayers: () => activePlayers,
     getDimension: () => dimension,
+    sendMessage: (text) => worldMessages.push(text),
   };
   const system = {
     currentTick: 10,
@@ -228,6 +235,7 @@ function makeHarness({ remainingCost = 10, inventory = [], offhand, players } = 
     target,
     wallRefreshes: () => wallRefreshes,
     world,
+    worldMessages,
   };
 }
 
@@ -273,7 +281,10 @@ test("one click pays across multiple inventory stacks with excess left in the la
   assert.equal(itemAt(harness.activePlayers[0], 0), undefined);
   assert.equal(itemAt(harness.activePlayers[0], 1), undefined);
   assert.equal(itemAt(harness.activePlayers[0], 2).amount, 14);
-  assert.equal(harness.activePlayers[0].actions.at(-1), "Chunk unlocked.");
+  assert.equal(harness.activePlayers[0].actions.at(-1), "Global Overworld chunk #1 unlocked.");
+  assert.equal(harness.worldMessages.at(-1), "player-1 unlocked Overworld chunk #1 (Global: shared by all players).");
+  assert.equal(harness.activePlayers[0].messages.length, 0);
+  assert.equal(harness.activePlayers[0].titles.length, 0);
   assert.equal(harness.sounds.at(-1).id, "random.levelup");
   assert.equal(harness.sounds.at(-1).options.pitch, 1);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), true);
@@ -467,4 +478,51 @@ test("a paid display click suppresses follow-through block and item use temporar
   const later = {player, cancel:false, isFirstEvent:true};
   h.callbacks.block(later);
   assert.equal(later.cancel, false);
+});
+
+test("unlock announcements number each dimension separately, use global chat and update the join notice", () => {
+  const harness = makeHarness({ remainingCost: 1, inventory: [new TestItemStack("minecraft:oak_log", 2)] });
+  const player = harness.activePlayers[0];
+  player.name = "Steve";
+  assert.match(harness.access.formatGlobalJoinNotice(), /Global: all players share unlocked chunks.*Overworld #0, Nether #0, The End #0/);
+
+  harness.payment.startPayments();
+  harness.click(player);
+  harness.flush();
+  assert.equal(harness.worldMessages.at(-1), "Steve unlocked Overworld chunk #1 (Global: shared by all players).");
+  assert.equal(player.actions.at(-1), "Global Overworld chunk #1 unlocked.");
+  assert.equal(player.titles.length, 0);
+
+  harness.props.set("chunklock:cell:minecraft:nether:0:1", 1);
+  harness.props.set("chunklock:req:minecraft:nether:0:1", JSON.stringify(makeRequirement(1)));
+  const netherDimension = {
+    id: "minecraft:nether",
+    playSound: () => {},
+    spawnParticle: () => {},
+  };
+  player.dimension = netherDimension;
+  const netherTarget = {
+    typeId: "chunklock:requirement_display",
+    dimension: netherDimension,
+    location: { x: 8, y: 64, z: 16.01 },
+    getDynamicProperty: (key) => ({ "chunklock:display:cx": 0, "chunklock:display:cz": 1 })[key],
+  };
+  harness.system.currentTick += 5;
+  harness.click(player, netherTarget);
+  harness.flush();
+
+  assert.equal(harness.worldMessages.at(-1), "Steve unlocked Nether chunk #1 (Global: shared by all players).");
+  assert.equal(player.actions.at(-1), "Global Nether chunk #1 unlocked.");
+  assert.equal(player.titles.length, 0);
+  assert.equal(
+    harness.access.formatGlobalJoinNotice(),
+    "Chunklock is active (Global: all players share unlocked chunks). Progress — Overworld #1, Nether #1, The End #0."
+  );
+
+  delete harness.world.sendMessage;
+  const observer = harness.makePlayer("Alex");
+  harness.activePlayers.push(observer);
+  harness.notices.broadcastGlobalNotice("Fallback broadcast test");
+  assert.equal(player.messages.at(-1), "Fallback broadcast test");
+  assert.equal(observer.messages.at(-1), "Fallback broadcast test");
 });

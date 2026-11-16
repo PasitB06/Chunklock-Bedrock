@@ -1,4 +1,5 @@
 import { system, world } from "@minecraft/server";
+import { formatGlobalJoinNotice } from "./access.js";
 import { startChunks } from "./chunks.js";
 import { startProtection } from "./protection.js";
 import { startWalls } from "./walls.js";
@@ -19,11 +20,15 @@ system.run(() => {
   system.runTimeout(startRequirementDisplays, 6);
 });
 
-// A small smoke check: each player sees this once when joining the world.
+// Announce the global Chunklock progress summary once when a player joins the world.
 world.afterEvents.playerSpawn.subscribe(({ player, initialSpawn }) => {
   if (initialSpawn) {
     system.run(() => {
-      player.sendMessage("Bedrock add-on is ready.");
+      try {
+        player.sendMessage(formatGlobalJoinNotice());
+      } catch {
+        /* The player may have left before the scheduled join notice runs. */
+      }
     });
   }
 });

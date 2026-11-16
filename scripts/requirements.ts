@@ -1,5 +1,5 @@
 import { Dimension, world } from "@minecraft/server";
-import { isOpenCell } from "./access.js";
+import { getDimensionUnlockedCount, isOpenCell } from "./access.js";
 import { calculateRemainingCost, resolveBedrockItemId, resolveBiomeTable, rollLootTable } from "./loot.js";
 import {
   deleteRequirementCached,
@@ -11,7 +11,6 @@ import {
 
 const REQUIREMENT_PREFIX = "chunklock:req:";
 const DEFAULT_DIFFICULTY = 2;
-const DEFAULT_UNLOCKED_COUNT = 0;
 const VALID_DIFFICULTIES = [1, 2, 3, 4];
 
 export type ChunkRequirement = Readonly<{
@@ -92,11 +91,6 @@ function readDifficulty(): 1 | 2 | 3 | 4 {
   return VALID_DIFFICULTIES.includes(value as number) ? (value as 1 | 2 | 3 | 4) : DEFAULT_DIFFICULTY;
 }
 
-function readUnlockedCount(dimensionId: string): number {
-  const value = world.getDynamicProperty(`chunklock:progress:unlocked:${dimensionId}`);
-  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : DEFAULT_UNLOCKED_COUNT;
-}
-
 export function ensureChunkRequirement(dimension: Dimension, cx: number, cz: number): EnsureRequirementResult {
   const dimensionId = dimension.id;
   if (!hasCellRecord(dimensionId, cx, cz)) return "skipped";
@@ -114,7 +108,12 @@ export function ensureChunkRequirement(dimension: Dimension, cx: number, cz: num
     const item = resolveBedrockItemId(rolled.sourceItemId);
     const difficulty = readDifficulty();
     const baseCount = rolled.baseCount;
-    const remainingCost = calculateRemainingCost(baseCount, dimensionId, readUnlockedCount(dimensionId), difficulty);
+    const remainingCost = calculateRemainingCost(
+      baseCount,
+      dimensionId,
+      getDimensionUnlockedCount(dimensionId),
+      difficulty
+    );
     const requirement: ChunkRequirement = {
       schemaVersion: 1,
       state: "locked",

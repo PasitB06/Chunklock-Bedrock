@@ -1,4 +1,4 @@
-import { Player, system } from "@minecraft/server";
+import { Player, system, world } from "@minecraft/server";
 
 export const NOTICE_HOLD_TICKS = 100;
 const activeNotices = new Map<string, { message: string; expiresAt: number }>();
@@ -40,4 +40,29 @@ export function refreshActionNotice(player: Player): boolean {
 
 export function clearActionNotice(playerId: string) {
   activeNotices.delete(playerId);
+}
+
+/**
+ * Broadcasts a global chat update to all connected players.
+ */
+export function broadcastGlobalNotice(message: string) {
+  try {
+    if (typeof world.sendMessage === "function") {
+      world.sendMessage(message);
+      return;
+    }
+  } catch {
+    /* Global chat must not interrupt unlock or state updates. */
+  }
+  try {
+    for (const player of world.getAllPlayers()) {
+      try {
+        player.sendMessage(message);
+      } catch {
+        /* Ignore disconnected players during broadcast. */
+      }
+    }
+  } catch {
+    /* Ignore player enumeration failures in minimal test mocks. */
+  }
 }

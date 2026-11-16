@@ -9,9 +9,9 @@ import {
   system,
   world,
 } from "@minecraft/server";
-import { isOpenCell, unlockChunk } from "./access.js";
+import { formatDimensionDisplayName, getDimensionUnlockedCount, isOpenCell, unlockChunk } from "./access.js";
 import { refreshRequirementDisplays } from "./displays.js";
-import { clearActionNotice, showActionNotice } from "./notices.js";
+import { broadcastGlobalNotice, clearActionNotice, showActionNotice } from "./notices.js";
 import {
   deleteChunkRequirement,
   formatItemDisplayName,
@@ -196,7 +196,13 @@ function finishUnlock(
       console.warn(`[Chunklock] Could not remove the completed requirement ${dimension}:${cx}:${cz}: ${error}`);
     }
     soundAndParticle(target, "random.levelup", 1, "minecraft:totem_particle");
-    actionBar(player, "Chunk unlocked.");
+    const dimensionName = formatDimensionDisplayName(dimension);
+    const unlockOrder = getDimensionUnlockedCount(dimension);
+    const playerName = typeof player.name === "string" && player.name.trim().length > 0 ? player.name : "A player";
+    showActionNotice(player, `Global ${dimensionName} chunk #${unlockOrder} unlocked.`);
+    broadcastGlobalNotice(
+      `${playerName} unlocked ${dimensionName} chunk #${unlockOrder} (Global: shared by all players).`
+    );
     refreshAfterPayment(true);
     return true;
   } catch (error) {
