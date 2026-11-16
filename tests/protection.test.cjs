@@ -529,3 +529,12 @@ test("deferred walls use vanilla blending while classic keeps its overlap materi
     assert.equal(texture, "textures/entity/border_wall" + (mode === "deferred" ? "_vibrant" : ""), mode);
   }
 });
+
+test("deferred walls provide emissive PBR without replacing the classic texture", () => {
+  const root = path.join(__dirname, "../resource_packs/chunklock/textures/entity");
+  const textureSet = JSON.parse(fs.readFileSync(path.join(root, "border_wall_vibrant.texture_set.json"), "utf8"));
+  assert.equal(textureSet.format_version, "1.21.30");
+  assert.equal(textureSet["minecraft:texture_set"].color, "border_wall_vibrant");
+  assert.deepEqual(textureSet["minecraft:texture_set"].metalness_emissive_roughness_subsurface, [0, 255, 255, 0]);
+  assert.equal(fs.existsSync(path.join(root, "border_wall.texture_set.json")), false);
+});

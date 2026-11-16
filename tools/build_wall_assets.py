@@ -122,4 +122,13 @@ def write_wall_texture(name, alpha):
 # Keep the original texture identical for Simple/Fancy; only deferred uses higher opacity.
 write_wall_texture('border_wall', 85)
 write_wall_texture('border_wall_vibrant', 170)
-print('Generated wall assets with graphics-mode-specific opacity.')
+# Deferred lighting can darken a wall to black even when ignore_lighting is set.
+# Explicit emissive PBR keeps the presentation visible without global lighting overrides.
+write(RP / 'textures/entity/border_wall_vibrant.texture_set.json', {
+    'format_version': '1.21.30',
+    'minecraft:texture_set': {
+        'color': 'border_wall_vibrant',
+        'metalness_emissive_roughness_subsurface': [0, 255, 255, 0]
+    }
+})
+print('Generated wall assets with graphics-mode-specific opacity and emissive PBR.')
