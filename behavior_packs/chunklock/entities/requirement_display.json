@@ -15,9 +15,13 @@
           "default": 0,
           "client_sync": true
         },
-        "chunklock:display_is_2d": {
-          "type": "bool",
-          "default": false,
+        "chunklock:display_icon": {
+          "type": "int",
+          "range": [
+            0,
+            577
+          ],
+          "default": 0,
           "client_sync": true
         }
       }
@@ -55,14 +59,6 @@
         "is_pushable_by_piston": false
       },
       "minecraft:body_rotation_blocked": {},
-      "minecraft:equipment": {},
-      "minecraft:equippable": {
-        "slots": [
-          {
-            "slot": 0
-          }
-        ]
-      },
       "minecraft:nameable": {
         "always_show": true,
         "allow_name_tag_renaming": false

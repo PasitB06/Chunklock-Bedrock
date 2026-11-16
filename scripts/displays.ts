@@ -1,4 +1,5 @@
-import { BlockTypes, Dimension, Entity, EquipmentSlot, ItemStack, Player, system, world } from "@minecraft/server";
+import { Dimension, Entity, Player, system, world } from "@minecraft/server";
+import { displayIconIndex } from "./display-icons-data.js";
 import { isOpenCell } from "./access.js";
 import { getChunkRequirement, formatItemDisplayName } from "./requirements.js";
 import { Cell, WallEdge, wallEdges } from "./regions.js";
@@ -12,25 +13,6 @@ const DISPLAY_ELEVATION = 0.25;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
 let started = false;
-
-const FLAT_BLOCK_ITEM_PATTERN =
-  /(?:^|_)(?:sapling|propagule|door|sign|pane|rail|torch|lantern|candle|campfire|chain|ladder|bars|mushroom|fungus|roots|sprouts|vine|vines|lily|tulip|orchid|allium|bluet|cornflower|dandelion|poppy|daisy|peony|lilac|rose|sunflower|petals|torchflower|pitcher_plant|spore_blossom|fern|grass|bush|kelp|sugar_cane|bamboo|pickle|amethyst_bud|amethyst_cluster|pointed_dripstone|web|cobweb|egg|frogspawn|flower_pot|cake|bed|bell|brewing_stand|cauldron|hopper|lever|tripwire_hook|repeater|comparator|coral_fan|lichen|sculk_vein)$/;
-
-const FLAT_NON_BLOCK_ITEM_PATTERN =
-  /(?:^|_)(?:ingot|nugget|shard|seeds|boat|raft|dye|bucket|sword|pickaxe|axe|shovel|hoe|apple|beef|porkchop|chicken|mutton|rabbit|cod|salmon|bread|carrot|potato|beetroot|melon_slice|berries|cookie|pie|coal|charcoal|diamond|emerald|lapis_lazuli|quartz|redstone|raw|stick|flint|bone|string|feather|leather|ball|brick|paper|book|gunpowder|blaze|ender|tear|cream|wart|eye|flesh|prismarine|scute|shell|sac|honeycomb|bottle|bowl|arrow|bow|crossbow|rod|shears|lead|tag|saddle|minecart|frame|painting|stand|firework|disc|potion|snowball|wheat)$/;
-
-export function isFlatDisplayItem(itemId: string): boolean {
-  const shortName = itemId.startsWith("minecraft:") ? itemId.slice("minecraft:".length) : itemId;
-  if (FLAT_BLOCK_ITEM_PATTERN.test(shortName)) return true;
-  if (typeof BlockTypes?.get === "function") {
-    try {
-      return BlockTypes.get(itemId) === undefined;
-    } catch {
-      /* Fall back to pattern matching when BlockTypes is unavailable. */
-    }
-  }
-  return FLAT_NON_BLOCK_ITEM_PATTERN.test(shortName);
-}
 
 type DisplayCandidate = {
   dimension: Dimension;
@@ -46,7 +28,7 @@ type DisplayCandidate = {
   remainingCost: number;
 };
 
-const candidateKey = (edge: WallEdge) => `${edge.key}:${edge.lockedCell.x}:${edge.lockedCell.z}`;
+const candidateKey = (edge: WallEdge) => `plaque1:${edge.key}:${edge.lockedCell.x}:${edge.lockedCell.z}`;
 
 function positionOnOpenSide(edge: WallEdge): { x: number; z: number } {
   if (edge.side === "north") return { x: edge.x, z: edge.z + OPEN_SIDE_OFFSET };
@@ -76,20 +58,7 @@ function updateDisplay(entity: Entity, candidate: DisplayCandidate) {
   entity.setDynamicProperty("chunklock:display:cz", candidate.lockedZ);
   const label = `${formatItemDisplayName(candidate.itemId)}\n× ${candidate.remainingCost}`;
   if (entity.nameTag !== label) entity.nameTag = label;
-  const equippable = entity.getComponent("minecraft:equippable");
-  const held = equippable?.getEquipment(EquipmentSlot.Mainhand);
-  const equippedItem = entity.getDynamicProperty("chunklock:display:item");
-  if (held?.typeId !== candidate.itemId || equippedItem !== candidate.itemId) {
-    equippable?.setEquipment(EquipmentSlot.Mainhand, new ItemStack(candidate.itemId, 1));
-    if (typeof entity.runCommand === "function") {
-      try {
-        entity.runCommand(`replaceitem entity @s slot.weapon.mainhand 0 ${candidate.itemId} 1`);
-      } catch {
-        /* Equippable component fallback already ran. */
-      }
-    }
-    entity.setDynamicProperty("chunklock:display:item", candidate.itemId);
-  }
+  entity.setProperty("chunklock:display_icon", displayIconIndex(candidate.itemId));
   const current = entity.location;
   if (
     Math.abs(current.x - candidate.x) > 0.01 ||
@@ -99,7 +68,6 @@ function updateDisplay(entity: Entity, candidate: DisplayCandidate) {
     entity.teleport({ x: candidate.x, y: candidate.y, z: candidate.z });
   }
   entity.setProperty?.("chunklock:display_yaw", candidate.rotation);
-  entity.setProperty?.("chunklock:display_is_2d", isFlatDisplayItem(candidate.itemId));
   entity.setRotation({ x: 0, y: candidate.rotation });
 }
 

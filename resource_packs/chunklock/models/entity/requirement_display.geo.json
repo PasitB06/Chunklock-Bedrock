@@ -19,44 +19,44 @@
           "name": "root",
           "pivot": [
             0,
-            3,
+            0,
             0
           ],
           "cubes": [
             {
               "origin": [
-                -0.5,
-                2.5,
-                -0.5
+                -4,
+                -4,
+                -0.01
               ],
               "size": [
-                1,
-                1,
-                1
+                8,
+                8,
+                0.02
               ],
-              "uv": [
-                0,
-                0
-              ]
+              "uv": {
+                "north": {
+                  "uv": [
+                    0,
+                    0
+                  ],
+                  "uv_size": [
+                    16,
+                    16
+                  ]
+                },
+                "south": {
+                  "uv": [
+                    0,
+                    0
+                  ],
+                  "uv_size": [
+                    16,
+                    16
+                  ]
+                }
+              }
             }
-          ]
-        },
-        {
-          "name": "rightArm",
-          "parent": "root",
-          "pivot": [
-            0,
-            3,
-            0
-          ]
-        },
-        {
-          "name": "rightItem",
-          "parent": "rightArm",
-          "pivot": [
-            0,
-            3,
-            0
           ]
         }
       ]

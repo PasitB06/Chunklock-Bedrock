@@ -13,6 +13,7 @@ This directory is the Git repository root. The Java reference is kept outside th
 | [Reference guide](docs/reference/README.md) | Explains the Java system and how its parts connect |
 | [Domain glossary](CONTEXT.md) | Defines chunks, unlock requirements, payers and progress |
 | [Bedrock mapping](docs/reference/bedrock-porting.md) | Maps responsibilities to future Bedrock work and records implementation status |
+| [Flat icon plaques](docs/flat-icon-plaques.md) | Explains centered icons, Vanilla texture mapping and regeneration |
 | [Loot requirements](docs/loot-requirements.md) | Explains loot compilation, per-chunk requirements, border displays, and inventory payment |
 | [Agent rules](AGENTS.md) | Requires English-only writing, reference-based development and a commit/push for each completed capability |
 

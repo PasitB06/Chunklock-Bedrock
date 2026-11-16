@@ -189,17 +189,14 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(harness.entities.length, 1);
   const display = harness.entities[0];
   assert.deepEqual(display.location, { x: 15.95, y: 65.87, z: 8 });
-  assert.equal(display.nameTag, "Oak Log\n× 16");
+  assert.equal(display.nameTag, "Oak Log\n\u00d7 16");
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
   assert.equal(display.properties.get("chunklock:display_yaw"), 90);
-  assert.equal(display.properties.get("chunklock:display_is_2d"), false);
+  assert.equal(display.properties.get("chunklock:display_icon"), load("display-icons-data").DISPLAY_ICON_INDEX["minecraft:oak_log"]);
   assert.deepEqual(display.rotation, { x: 0, y: 90 });
-  assert.equal(display.equipment.get("Mainhand").typeId, "minecraft:oak_log");
-  assert.equal(harness.displays.isFlatDisplayItem("minecraft:oak_log"), false);
-  assert.equal(harness.displays.isFlatDisplayItem("minecraft:oak_sapling"), true);
-  assert.equal(harness.displays.isFlatDisplayItem("minecraft:iron_ingot"), true);
-  assert.deepEqual(display.commands, ["replaceitem entity @s slot.weapon.mainhand 0 minecraft:oak_log 1"]);
+  assert.equal(display.equipment.size, 0);
+  assert.deepEqual(display.commands, []);
 
   const tooFar = makeHarness({
     players: [makePlayer({ x: -9 })],
@@ -233,63 +230,104 @@ test("requirement displays update helpers and remove duplicates and stale helper
   assert.equal(harness.entities.length, 1);
   assert.equal(harness.entities[0].id, primary.id, "the existing helper is reused");
   assert.equal(duplicate.removed, true);
-  assert.equal(primary.nameTag, "Oak Log\n× 8");
+  assert.equal(primary.nameTag, "Oak Log\n\u00d7 8");
 
   harness.props.delete("chunklock:req:minecraft:overworld:1:0");
   harness.displays.refreshRequirementDisplays();
   assert.equal(harness.entities.length, 0, "helpers without a locked requirement are removed");
 });
 
-test("requirement display pack files define a compact helper with held-item rendering", () => {
+test("flat icon catalog covers source items and selects matching texture indices", () => {
+  const icons = load("display-icons-data");
   const root = path.join(__dirname, "..");
-  const behavior = JSON.parse(
-    fs.readFileSync(path.join(root, "behavior_packs/chunklock/entities/requirement_display.json"), "utf8")
-  )["minecraft:entity"];
-  const components = behavior.components;
-  assert.deepEqual(behavior.description.properties["chunklock:display_yaw"], {
-    type: "int",
-    range: [0, 270],
-    default: 0,
-    client_sync: true,
-  });
-  assert.deepEqual(behavior.description.properties["chunklock:display_is_2d"], {
-    type: "bool",
-    default: false,
-    client_sync: true,
-  });
-  assert.deepEqual(components["minecraft:collision_box"], { width: 0.35, height: 0.35 });
-  assert.deepEqual(components["minecraft:physics"], { has_gravity: false, has_collision: false });
-  assert.equal(components["minecraft:pushable"].is_pushable, false);
-  assert.equal(components["minecraft:breathable"].breathes_solids, true);
-  assert.equal(components["minecraft:breathable"].breathes_water, true);
-  assert.equal(components["minecraft:health"].value, 100);
-  assert.equal(components["minecraft:damage_sensor"].triggers[0].deals_damage, "no");
-  assert.ok(components["minecraft:equipment"]);
-  assert.ok(components["minecraft:equippable"].slots.length > 0);
-  assert.equal(components["minecraft:nameable"].always_show, true);
-
-  const client = JSON.parse(
-    fs.readFileSync(path.join(root, "resource_packs/chunklock/entity/requirement_display.entity.json"), "utf8")
-  )["minecraft:client_entity"].description;
-  assert.equal(client.enable_attachables, true);
-  assert.equal(client.held_item_ignores_lighting, true);
-  assert.equal(client.animations.pose, "animation.chunklock.requirement_display.pose");
-  assert.ok(client.render_controllers.includes("controller.render.chunklock.requirement_display"));
-  const geometry = JSON.parse(
-    fs.readFileSync(path.join(root, "resource_packs/chunklock/models/entity/requirement_display.geo.json"), "utf8")
-  )["minecraft:geometry"][0];
-  assert.equal(geometry.description.identifier, "geometry.chunklock.requirement_display");
-  const rootBone = geometry.bones.find((bone) => bone.name === "root");
-  const rightItemBone = geometry.bones.find((bone) => bone.name === "rightItem");
-  assert.ok(rootBone.cubes.length > 0, "pedestal cube keeps the display geometry non-empty");
-  assert.ok(rightItemBone);
-  assert.equal(rightItemBone.neverRender, undefined);
-  const controller = JSON.parse(
-    fs.readFileSync(
-      path.join(root, "resource_packs/chunklock/render_controllers/requirement_display.render_controllers.json"),
-      "utf8"
-    )
-  ).render_controllers;
-  assert.ok(controller["controller.render.chunklock.requirement_display"]);
+  const client = JSON.parse(fs.readFileSync(path.join(root, "resource_packs/chunklock/entity/requirement_display.entity.json"), "utf8"))["minecraft:client_entity"].description;
+  const controller = JSON.parse(fs.readFileSync(path.join(root, "resource_packs/chunklock/render_controllers/requirement_display.render_controllers.json"), "utf8")).render_controllers["controller.render.chunklock.requirement_display"];
+  const tables = load("loot-tables-data").LOOT_TABLES;
+  for (const table of Object.values(tables)) {
+    for (const pool of table.pools) for (const entry of pool.entries) {
+      if (entry.type !== "item") continue;
+      const index = icons.DISPLAY_ICON_INDEX[entry.name];
+      assert.ok(Number.isInteger(index) && index > 0, entry.name);
+      assert.ok(client.textures[controller.arrays.textures["Array.icons"][index].replace("Texture.", "")], entry.name);
+    }
+  }
+  for (const [item, expected] of [["spruce_hanging_sign", "textures/items/spruce_hanging_sign"], ["spruce_sign", "textures/items/sign_spruce"]]) {
+    const index = icons.displayIconIndex(`minecraft:${item}`);
+    assert.equal(client.textures[controller.arrays.textures["Array.icons"][index].replace("Texture.", "")], expected);
+  }
+  assert.equal(icons.displayIconIndex("other:unknown"), 0);
+  assert.equal(icons.displayIconIndex("minecraft:grass"), icons.displayIconIndex("minecraft:short_grass"));
+  assert.equal(client.enable_attachables, undefined);
 });
 
+test("plaques are horizontally centered, wall-parallel and have no held-item skeleton", () => {
+  const root = path.join(__dirname, "..");
+  const read = (name) => JSON.parse(fs.readFileSync(path.join(root, name), "utf8"));
+  const behavior = read("behavior_packs/chunklock/entities/requirement_display.json")["minecraft:entity"];
+  assert.equal(behavior.description.properties["chunklock:display_icon"].client_sync, true);
+  assert.equal(behavior.components["minecraft:equipment"], undefined);
+  assert.equal(behavior.components["minecraft:equippable"], undefined);
+  assert.deepEqual(behavior.components["minecraft:collision_box"], { width: 0.35, height: 0.35 });
+  const geometry = read("resource_packs/chunklock/models/entity/requirement_display.geo.json")["minecraft:geometry"][0];
+  assert.deepEqual(geometry.bones.map((bone) => bone.name), ["root"]);
+  const cube = geometry.bones[0].cubes[0];
+  assert.equal(cube.origin[0] + cube.size[0] / 2, 0);
+  assert.equal(cube.size[0], cube.size[1]);
+  assert.ok(cube.size[2] <= 0.1);
+  assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
+  const pose = read("resource_packs/chunklock/animations/requirement_display.animation.json").animations["animation.chunklock.requirement_display.pose"];
+  assert.deepEqual(Object.keys(pose.bones), ["root"]);
+  assert.equal(pose.bones.root.rotation[0], 0);
+  assert.equal(pose.bones.root.rotation[2], 0);
+});
+
+test("icon changes refresh the picture and unknown requirements retain their label", () => {
+  const harness = makeHarness({players: [makePlayer()], properties: {
+    "chunklock:open:minecraft:overworld:0:0": true,
+    "chunklock:req:minecraft:overworld:1:0": JSON.stringify(makeRequirement()),
+  }});
+  harness.displays.startRequirementDisplays();
+  const entity = harness.entities[0];
+  const next = {...makeRequirement(3), itemId: "minecraft:lilac"};
+  harness.props.set("chunklock:req:minecraft:overworld:1:0", JSON.stringify(next));
+  harness.displays.refreshRequirementDisplays();
+  assert.equal(entity.properties.get("chunklock:display_icon"), load("display-icons-data").displayIconIndex(next.itemId));
+  next.itemId = "custom:unknown";
+  harness.props.set("chunklock:req:minecraft:overworld:1:0", JSON.stringify(next));
+  harness.displays.refreshRequirementDisplays();
+  assert.equal(entity.properties.get("chunklock:display_icon"), 0);
+  assert.equal(entity.nameTag, "Unknown\n× 3");
+  assert.deepEqual(entity.commands, []);
+});
+
+test("plaque migration replaces old helpers without changing requirements or access", () => {
+  const stored = JSON.stringify(makeRequirement());
+  const harness = makeHarness({players: [makePlayer()], properties: {
+    "chunklock:open:minecraft:overworld:0:0": true,
+    "chunklock:req:minecraft:overworld:1:0": stored,
+  }});
+  const old = harness.dimensions.get("overworld").spawnEntity(DISPLAY_TYPE, {x: 16, y: 66, z: 8});
+  old.setDynamicProperty("chunklock:display_key", "z:16:8:1:0");
+  harness.displays.startRequirementDisplays();
+  assert.equal(old.removed, true);
+  assert.equal(harness.entities.length, 1);
+  assert.ok(harness.entities[0].getDynamicProperty("chunklock:display_key").startsWith("plaque1:"));
+  assert.equal(harness.props.get("chunklock:req:minecraft:overworld:1:0"), stored);
+  assert.equal(harness.props.get("chunklock:open:minecraft:overworld:0:0"), true);
+});
+
+test("plaques stay on the open side with correct cardinal yaw on all four boundaries", () => {
+  const properties = {"chunklock:open:minecraft:overworld:0:0": true};
+  for (const [x,z] of [[0,-1],[1,0],[0,1],[-1,0]]) {
+    properties[`chunklock:req:minecraft:overworld:${x}:${z}`] = JSON.stringify(makeRequirement());
+  }
+  const harness = makeHarness({players:[makePlayer()], properties});
+  harness.displays.startRequirementDisplays();
+  assert.equal(harness.entities.length, 4);
+  assert.deepEqual(harness.entities.map(e=>e.properties.get("chunklock:display_yaw")).sort((a,b)=>a-b), [0,90,180,270]);
+  for (const entity of harness.entities) {
+    assert.ok(entity.location.x > 0 && entity.location.x < 16);
+    assert.ok(entity.location.z > 0 && entity.location.z < 16);
+    assert.equal(entity.equipment.size, 0);
+  }
+});

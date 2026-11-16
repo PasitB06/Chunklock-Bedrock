@@ -10,35 +10,6 @@
             "query.property('chunklock:display_yaw') - query.body_y_rotation",
             0
           ]
-        },
-        "rightArm": {
-          "position": [
-            1.75,
-            1.5,
-            0
-          ],
-          "rotation": [
-            -20,
-            0,
-            "query.property('chunklock:display_is_2d') ? -45 : 0"
-          ]
-        },
-        "rightItem": {
-          "rotation": [
-            0,
-            -45,
-            0
-          ],
-          "position": [
-            0,
-            0,
-            0
-          ],
-          "scale": [
-            0.55,
-            0.55,
-            0.55
-          ]
         }
       }
     }
