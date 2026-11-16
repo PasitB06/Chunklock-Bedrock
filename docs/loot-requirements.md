@@ -61,3 +61,7 @@ Partial payments persist the lower remaining cost and refresh the visible count.
 ## Default item presentation
 
 At the user's request, root, arm and held-item bone rotations are all [0, 0, 0], and the display entity rotation is also reset to zero. No body-yaw cancellation or pitch/yaw compensation is applied. The held item's built-in vanilla equipment transform still applies. Placement and label height remain unchanged. This establishes a neutral baseline for runtime inspection, not a verified alignment fix. Use `/reload all` after deployment to reload both packs.
+
+## Compact border click target
+
+The display anchor is now 0.05 blocks into the open side rather than 0.3. Its click box is 0.4 blocks wide and 0.6 high, and the held-item bone scale is 0.65. This reduces protrusion and the area intercepting melee rays while retaining a central payment target. Rays aimed directly through that target still hit the helper; damage immunity does not forward an attack to a mob behind it. Runtime combat and click usability remain to be verified.

@@ -186,7 +186,7 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(harness.intervals.length, 1);
   assert.equal(harness.entities.length, 1);
   const display = harness.entities[0];
-  assert.deepEqual(display.location, { x: 15.7, y: 65.17, z: 8 });
+  assert.deepEqual(display.location, { x: 15.95, y: 65.17, z: 8 });
   assert.equal(display.nameTag, "Oak Log\n× 16");
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
@@ -238,7 +238,7 @@ test("requirement display pack files define a compact helper with held-item rend
     fs.readFileSync(path.join(root, "behavior_packs/chunklock/entities/requirement_display.json"), "utf8")
   )["minecraft:entity"];
   const components = behavior.components;
-  assert.deepEqual(components["minecraft:collision_box"], { width: 0.8, height: 0.9 });
+  assert.deepEqual(components["minecraft:collision_box"], { width: 0.4, height: 0.6 });
   assert.deepEqual(components["minecraft:physics"], { has_gravity: false, has_collision: false });
   assert.equal(components["minecraft:pushable"].is_pushable, false);
   assert.equal(components["minecraft:breathable"].breathes_solids, true);
@@ -273,3 +273,4 @@ test("requirement display pack files define a compact helper with held-item rend
   ).render_controllers;
   assert.ok(controller["controller.render.chunklock.requirement_display"]);
 });
+
