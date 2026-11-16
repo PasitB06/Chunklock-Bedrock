@@ -195,7 +195,7 @@ function finishUnlock(
     } catch (error) {
       console.warn(`[Chunklock] Could not remove the completed requirement ${dimension}:${cx}:${cz}: ${error}`);
     }
-    soundAndParticle(target, "block.end_portal_frame.fill", 1.5, "minecraft:totem_particle");
+    soundAndParticle(target, "random.levelup", 1, "minecraft:totem_particle");
     actionBar(player, "Chunk unlocked.");
     refreshAfterPayment(true);
     return true;

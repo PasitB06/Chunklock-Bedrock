@@ -274,6 +274,8 @@ test("one click pays across multiple inventory stacks with excess left in the la
   assert.equal(itemAt(harness.activePlayers[0], 1), undefined);
   assert.equal(itemAt(harness.activePlayers[0], 2).amount, 14);
   assert.equal(harness.activePlayers[0].actions.at(-1), "Chunk unlocked.");
+  assert.equal(harness.sounds.at(-1).id, "random.levelup");
+  assert.equal(harness.sounds.at(-1).options.pitch, 1);
   assert.equal(harness.access.isOpenCell("minecraft:overworld", 1, 0), true);
   assert.equal(harness.props.get("chunklock:progress:unlocked:minecraft:overworld"), 1);
   assert.equal(harness.props.get("chunklock:progress:unlocked:total"), 1);

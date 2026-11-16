@@ -118,9 +118,9 @@ def write_wall_texture(name, alpha):
     texture.write_bytes(png)
 
 
-# Keep Simple/Fancy at alpha 85; lower deferred emissive opacity so terrain remains clearly visible.
+# Keep Simple/Fancy at alpha 85; lower deferred emissive opacity to ~5% (alpha 13/255).
 write_wall_texture('border_wall', 85)
-write_wall_texture('border_wall_vibrant', 75)
+write_wall_texture('border_wall_vibrant', 13)
 # Deferred lighting can darken a wall to black even when ignore_lighting is set.
 # Explicit emissive PBR keeps the presentation visible without global lighting overrides.
 write(RP / 'textures/entity/border_wall_vibrant.texture_set.json', {
