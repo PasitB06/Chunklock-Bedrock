@@ -74,3 +74,7 @@ Open questions to resolve when the relevant system is implemented:
 
 Update the status table with implementation file links and validation evidence when a capability is completed.
 Distinguish static/build checks from actual Minecraft gameplay testing.
+
+## Wall orientation correction
+
+The wall manager now synchronizes `chunklock:wall_yaw` to the client: north/south edges use 0 degrees and east/west edges use 90 degrees. The model subtracts body yaw from this explicit target rather than combining body and head angles. Versioned `v4` helper keys replace older helpers. This adapts Java border display transforms to a Bedrock entity property; access and payment state are unchanged. Automated checks cover the rotation expression; rendered alignment still requires Minecraft verification after restarting the game.

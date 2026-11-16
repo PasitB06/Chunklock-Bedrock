@@ -120,3 +120,7 @@ Runtime verification on Bedrock 1.26.63: after a full restart, the final alpha-b
 
 
 The movement collision capability was added in Behavior Pack version 0.2.3. The coordinate correction is released in Behavior Pack version 0.2.4; its resource dependency remains at 0.2.2.
+
+## Wall orientation correction
+
+The wall manager now synchronizes `chunklock:wall_yaw` to the client: north/south edges use 0 degrees and east/west edges use 90 degrees. The model subtracts body yaw from this explicit target rather than combining body and head angles. Versioned `v4` helper keys replace older helpers. This adapts Java border display transforms to a Bedrock entity property; access and payment state are unchanged. Automated checks cover the rotation expression; rendered alignment still requires Minecraft verification after restarting the game.

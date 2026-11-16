@@ -16,7 +16,8 @@ function alignWall(entity: Entity, wall: { x: number; y: number; z: number; rota
   ) {
     entity.teleport?.({ x: wall.x, y: wall.y, z: wall.z });
   }
-  entity.setRotation({ x: 0, y: wall.rotation });
+  entity.setProperty("chunklock:wall_yaw", wall.rotation);
+  entity.setRotation({ x: 0, y: 0 });
 }
 
 export function refreshWalls() {
@@ -54,7 +55,7 @@ export function refreshWalls() {
         for (let y = dimension.heightRange.min; y < dimension.heightRange.max; y += 64) {
           const verticalDistance = Math.abs(y + 32 - player.location.y);
           if (verticalDistance > VERTICAL_VIEW_RANGE) continue;
-          const id = `v3:${edge.key}:${y}`;
+          const id = `v4:${edge.key}:${y}`;
           const wall = {
             dimension,
             id,

@@ -214,6 +214,7 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
           alive: true,
           location,
           setRotation: () => {},
+          setProperty: (k, v) => state.set(k, v),
           setDynamicProperty: (k, v) => state.set(k, v),
           getDynamicProperty: (k) => state.get(k),
           remove: () => {
@@ -295,13 +296,13 @@ test("combat guard cancels melee and same-tick projectile damage in locked cells
   for (const typeId of ["chunklock:border_wall", "chunklock:requirement_display"]) {
     for (const cause of ["fall", "suffocation", "void", "entityAttack"]) {
       const helper = {
-      hurtEntity: {
-        typeId,
-        dimension: { id: "minecraft:overworld" },
-        location: { x: 8, z: 8 },
-      },
-      damageSource: { cause },
-      cancel: false,
+        hurtEntity: {
+          typeId,
+          dimension: { id: "minecraft:overworld" },
+          location: { x: 8, z: 8 },
+        },
+        damageSource: { cause },
+        cancel: false,
       };
       callbacks.entityHurt(helper);
       assert.equal(helper.cancel, true, `${typeId} must survive ${cause} even on the open side`);
@@ -333,7 +334,7 @@ test("wall geometry uses bounded tiles with no translucent edge caps", () => {
   const animation = JSON.parse(
     fs.readFileSync(path.join(root, "resource_packs/chunklock/animations/border_wall.animation.json"), "utf8")
   ).animations["animation.chunklock.border_wall.align"];
-  assert.match(animation.bones.wall.rotation[1], /query\.body_y_rotation/);
+  assert.equal(animation.bones.wall.rotation[1], "query.property('chunklock:wall_yaw') - query.body_y_rotation");
 });
 
 test("wall helpers breathe in terrain and use an unconditional damage sensor", () => {

@@ -17,7 +17,8 @@ def write(path, data):
 write(BP / 'entities/border_wall.json', {
     'format_version': '1.21.0',
     'minecraft:entity': {
-        'description': {'identifier': 'chunklock:border_wall', 'is_spawnable': False, 'is_summonable': True},
+        'description': {'identifier': 'chunklock:border_wall', 'is_spawnable': False, 'is_summonable': True,
+                        'properties': {'chunklock:wall_yaw': {'type': 'int', 'range': [0, 90], 'default': 0, 'client_sync': True}}},
         'components': {
             'minecraft:physics': {'has_gravity': False, 'has_collision': False},
             'minecraft:collision_box': {'width': 0, 'height': 0},
@@ -53,7 +54,7 @@ write(RP / 'animations/border_wall.animation.json', {
                 'wall': {
                     'rotation': [
                         0,
-                        'math.round((query.body_y_rotation + query.head_y_rotation(0)) / 90) * 90 - query.body_y_rotation',
+                        "query.property('chunklock:wall_yaw') - query.body_y_rotation",
                         0
                     ]
                 }

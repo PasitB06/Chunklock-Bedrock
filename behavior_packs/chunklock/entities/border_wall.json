@@ -4,7 +4,18 @@
     "description": {
       "identifier": "chunklock:border_wall",
       "is_spawnable": false,
-      "is_summonable": true
+      "is_summonable": true,
+      "properties": {
+        "chunklock:wall_yaw": {
+          "type": "int",
+          "range": [
+            0,
+            90
+          ],
+          "default": 0,
+          "client_sync": true
+        }
+      }
     },
     "components": {
       "minecraft:physics": {
