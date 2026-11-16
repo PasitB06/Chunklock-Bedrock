@@ -9,7 +9,7 @@
         }
       ],
       "textures": [
-        "Texture.default"
+        "query.graphics_mode_is_any('deferred') ? Texture.vibrant : Texture.default"
       ],
       "ignore_lighting": true
     }

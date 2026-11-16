@@ -63,11 +63,12 @@ write(RP / 'animations/border_wall.animation.json', {
     }
 })
 write(RP / 'entity/border_wall.entity.json', {
-    'format_version': '1.10.0',
+    'format_version': '1.21.80',
     'minecraft:client_entity': {'description': {
         'identifier': 'chunklock:border_wall',
         'materials': {'default': 'chunklock_border_wall'},
-        'textures': {'default': 'textures/entity/border_wall'},
+        'textures': {'default': 'textures/entity/border_wall',
+                     'vibrant': 'textures/entity/border_wall_vibrant'},
         'geometry': {'default': 'geometry.chunklock.border_wall'},
         'animations': {'align': 'animation.chunklock.border_wall.align'},
         'scripts': {'animate': ['align']},
@@ -78,7 +79,8 @@ write(RP / 'render_controllers/border_wall.render_controllers.json', {
     'format_version': '1.8.0',
     'render_controllers': {'controller.render.chunklock.border_wall': {
         'geometry': 'Geometry.default', 'materials': [{'*': 'Material.default'}],
-        'textures': ['Texture.default'], 'ignore_lighting': True
+        'textures': ["query.graphics_mode_is_any('deferred') ? Texture.vibrant : Texture.default"],
+        'ignore_lighting': True
     }}
 })
 # Ultra-thin 0.1-unit depth with matching 0.05-unit corner extension closes
@@ -103,14 +105,20 @@ def chunk(kind, data):
     return struct.pack('!I', len(data)) + kind + data + struct.pack('!I', zlib.crc32(kind + data) & 0xffffffff)
 
 
-rows = bytearray()
-for y in range(16):
-    rows.append(0)
-    for x in range(16):
-        rows.extend((25, 95, 220, 85))
-png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', 16, 16, 8, 6, 0, 0, 0))
-png += chunk(b'IDAT', zlib.compress(bytes(rows))) + chunk(b'IEND', b'')
-texture = RP / 'textures/entity/border_wall.png'
-texture.parent.mkdir(parents=True, exist_ok=True)
-texture.write_bytes(png)
-print('Generated wall behavior, client entity, material, animation, geometry, render controller and RGBA texture.')
+def write_wall_texture(name, alpha):
+    rows = bytearray()
+    for y in range(16):
+        rows.append(0)
+        for x in range(16):
+            rows.extend((25, 95, 220, alpha))
+    png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('!2I5B', 16, 16, 8, 6, 0, 0, 0))
+    png += chunk(b'IDAT', zlib.compress(bytes(rows))) + chunk(b'IEND', b'')
+    texture = RP / f'textures/entity/{name}.png'
+    texture.parent.mkdir(parents=True, exist_ok=True)
+    texture.write_bytes(png)
+
+
+# Keep the original texture identical for Simple/Fancy; only deferred uses higher opacity.
+write_wall_texture('border_wall', 85)
+write_wall_texture('border_wall_vibrant', 170)
+print('Generated wall assets with graphics-mode-specific opacity.')
