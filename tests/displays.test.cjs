@@ -188,7 +188,7 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(harness.intervals.length, 1);
   assert.equal(harness.entities.length, 1);
   const display = harness.entities[0];
-  assert.deepEqual(display.location, { x: 15.55, y: 65.47, z: 8 });
+  assert.deepEqual(display.location, { x: 15.82, y: 65.47, z: 8 });
   assert.equal(display.nameTag, "Oak Log\n\u00d7 16");
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
@@ -276,9 +276,10 @@ test("plaques are horizontally centered, wall-parallel and have no held-item ske
   assert.equal(cube.origin[0] + cube.size[0] / 2, 0);
   assert.equal(cube.origin[1] + cube.size[1] / 2, 6.8);
   assert.equal(cube.size[0], cube.size[1]);
-  assert.equal(cube.size[0], 12);
+  assert.equal(cube.size[0], 11);
   assert.ok(cube.size[2] <= 0.1);
   assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
+  assert.deepEqual(cube.uv.south, { uv: [16, 0], uv_size: [-16, 16] });
   const pose = read("resource_packs/chunklock/animations/requirement_display.animation.json").animations["animation.chunklock.requirement_display.pose"];
   assert.deepEqual(Object.keys(pose.bones), ["root"]);
   assert.equal(pose.bones.root.rotation[0], 0);
