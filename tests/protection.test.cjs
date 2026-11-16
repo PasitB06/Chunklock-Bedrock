@@ -213,6 +213,10 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
         const e = {
           alive: true,
           location,
+          velocity: { x: 0, y: 0, z: 0 },
+          getVelocity: () => e.velocity,
+          clearVelocity: () => { e.velocity = { x: 0, y: 0, z: 0 }; },
+          teleport: (next, options) => { e.location = { ...next }; e.lastTeleport = options; },
           setRotation: () => {},
           setProperty: (k, v) => state.set(k, v),
           setDynamicProperty: (k, v) => state.set(k, v),
@@ -249,6 +253,16 @@ test("wall helpers are budgeted, deduplicated on reload and removed after player
   intervals[0]();
   intervals[0]();
   assert.equal(player.dimension.getEntities().length, 8, "four sides with two height segments");
+  const drifting = player.dimension.getEntities()[0];
+  const anchor = { ...drifting.location };
+  drifting.location = { x: anchor.x, y: anchor.y + 0.2, z: anchor.z };
+  drifting.velocity = { x: 0, y: 0.1, z: 0 };
+  assert.equal(typeof intervals[1], "function", "a lightweight per-tick anchor pass is scheduled");
+  intervals[1]();
+  assert.deepEqual(drifting.location, anchor);
+  assert.deepEqual(drifting.velocity, { x: 0, y: 0, z: 0 });
+  assert.equal(drifting.lastTeleport.checkForBlocks, false);
+  assert.equal(drifting.lastTeleport.keepVelocity, false);
   load("walls", api).startWalls();
   assert.equal(player.dimension.getEntities().length, 8, "reload must adopt existing helpers");
   players = [];
@@ -323,9 +337,12 @@ test("wall geometry uses bounded tiles with no translucent edge caps", () => {
     assert.equal(cube.origin[0], -128.05);
     assert.equal(cube.origin[2], -0.05);
     assert.equal(cube.size[0], 256.1);
-    assert.ok(cube.size[1] <= 256);
+    assert.ok(cube.size[1] <= 256.16);
     assert.equal(cube.size[2], 0.1);
     assert.deepEqual(Object.keys(cube.uv).sort(), ["north", "south"]);
+  }
+  for (let index = 1; index < cubes.length; index++) {
+    assert.ok(cubes[index - 1].origin[1] + cubes[index - 1].size[1] > cubes[index].origin[1], "vertical tiles overlap instead of exposing terrain");
   }
   const material = JSON.parse(
     fs.readFileSync(path.join(root, "resource_packs/chunklock/materials/entity.material"), "utf8")

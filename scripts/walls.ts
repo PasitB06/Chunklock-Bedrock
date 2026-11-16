@@ -7,20 +7,44 @@ const MAX_WALLS = 192;
 const VERTICAL_VIEW_RANGE = 96;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
+let started = false;
+type WallAnchor = { x: number; y: number; z: number; rotation: number };
+const pinnedWalls = new Map<Entity, WallAnchor>();
 
-function alignWall(entity: Entity, wall: { x: number; y: number; z: number; rotation: number }) {
+function pinWall(entity: Entity, wall: WallAnchor) {
+  const velocity = entity.getVelocity?.();
+  if (velocity && (velocity.x !== 0 || velocity.y !== 0 || velocity.z !== 0)) entity.clearVelocity();
   const current = entity.location;
   if (
     current &&
-    (Math.abs(current.x - wall.x) > 0.01 || Math.abs(current.y - wall.y) > 0.01 || Math.abs(current.z - wall.z) > 0.01)
+    (Math.abs(current.x - wall.x) > 0.001 ||
+      Math.abs(current.y - wall.y) > 0.001 ||
+      Math.abs(current.z - wall.z) > 0.001)
   ) {
-    entity.teleport?.({ x: wall.x, y: wall.y, z: wall.z });
+    entity.teleport({ x: wall.x, y: wall.y, z: wall.z }, { checkForBlocks: false, keepVelocity: false });
   }
+}
+
+function stabilizeWalls() {
+  for (const [entity, wall] of pinnedWalls) {
+    try {
+      pinWall(entity, wall);
+    } catch {
+      // An unloaded or removed helper is adopted again during reconciliation if needed.
+      pinnedWalls.delete(entity);
+    }
+  }
+}
+
+function alignWall(entity: Entity, wall: { x: number; y: number; z: number; rotation: number }) {
+  pinWall(entity, wall);
+  pinnedWalls.set(entity, wall);
   entity.setProperty("chunklock:wall_yaw", wall.rotation);
   entity.setRotation({ x: 0, y: 0 });
 }
 
 export function refreshWalls() {
+  pinnedWalls.clear();
   const players = world.getAllPlayers();
   const grouped = new Map<string, Player[]>();
   for (const player of players) {
@@ -108,6 +132,9 @@ export function refreshWalls() {
 }
 
 export function startWalls() {
+  if (started) return;
+  started = true;
   refreshWalls();
   system.runInterval(refreshWalls, 10);
+  system.runInterval(stabilizeWalls, 1);
 }

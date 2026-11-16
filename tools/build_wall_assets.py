@@ -20,7 +20,7 @@ write(BP / 'entities/border_wall.json', {
         'description': {'identifier': 'chunklock:border_wall', 'is_spawnable': False, 'is_summonable': True,
                         'properties': {'chunklock:wall_yaw': {'type': 'int', 'range': [0, 90], 'default': 0, 'client_sync': True}}},
         'components': {
-            'minecraft:physics': {'has_gravity': False, 'has_collision': False},
+            'minecraft:physics': {'has_gravity': False, 'has_collision': False, 'push_towards_closest_space': False},
             'minecraft:collision_box': {'width': 0, 'height': 0},
             'minecraft:health': {'value': 100, 'max': 100},
             'minecraft:damage_sensor': {'triggers': [{'deals_damage': 'no'}]},
@@ -84,6 +84,7 @@ write(RP / 'render_controllers/border_wall.render_controllers.json', {
         'ignore_lighting': True
     }}
 })
+# Each vertical tile extends 0.08 model units at both ends to hide subpixel seams.
 # Ultra-thin 0.1-unit depth with matching 0.05-unit corner extension closes
 # perpendicular corners seamlessly while keeping front/back faces distinct for
 # backface culling.
@@ -94,7 +95,7 @@ write(RP / 'models/entity/border_wall.geo.json', {
                         'texture_height': 16, 'visible_bounds_width': 48,
                         'visible_bounds_height': 128, 'visible_bounds_offset': [0, 32, 0]},
         'bones': [{'name': 'wall', 'pivot': [0, 0, 0], 'cubes': [{
-            'origin': [-128.05, tile * 256, -0.05], 'size': [256.1, 256, 0.1],
+            'origin': [-128.05, tile * 256 - 0.08, -0.05], 'size': [256.1, 256.16, 0.1],
             'uv': {face: {'uv': [0, 0], 'uv_size': [16, 16]}
                    for face in ['north', 'south']}
         } for tile in range(4)]}]
