@@ -6,6 +6,7 @@ import {
   isPlayerSeededCached,
   markOpenCached,
   markPlayerSeededCached,
+  unmarkCellRecorded,
 } from "./state-cache.js";
 
 const key = (dimension: string, x: number, z: number) => `chunklock:open:${dimension}:${x}:${z}`;
@@ -21,6 +22,18 @@ const DIMENSION_DISPLAY_NAMES: Record<string, string> = {
 
 export const isOpenCell = (dimension: string, x: number, z: number) => isOpenCached(dimension, x, z);
 export const isLocked = (dimension: string, x: number, z: number) => !isOpenCell(dimension, chunkAt(x), chunkAt(z));
+
+/**
+ * Returns true when at least one of the four cardinal neighbor chunks is already open.
+ */
+export function hasOpenCardinalNeighbor(dimensionId: string, cx: number, cz: number): boolean {
+  return (
+    isOpenCached(dimensionId, cx, cz - 1) ||
+    isOpenCached(dimensionId, cx + 1, cz) ||
+    isOpenCached(dimensionId, cx, cz + 1) ||
+    isOpenCached(dimensionId, cx - 1, cz)
+  );
+}
 
 function readCount(owner: Player | typeof world, propertyId: string): number {
   const value = owner.getDynamicProperty(propertyId);
@@ -107,6 +120,14 @@ function clearRequirementProperty(dimension: string, x: number, z: number) {
   deleteRequirementCached(dimension, x, z);
 }
 
+function clearCellRecordProperty(dimension: string, x: number, z: number) {
+  const cellPropertyKey = `chunklock:cell:${dimension}:${x}:${z}`;
+  if (world.getDynamicProperty(cellPropertyKey) !== undefined) {
+    world.setDynamicProperty(cellPropertyKey, undefined);
+  }
+  unmarkCellRecorded(dimension, x, z);
+}
+
 function applyUnlockedState(updates: [() => void, () => void][], dimension: string, x: number, z: number): boolean {
   const openProperty = key(dimension, x, z);
   if (isOpenCached(dimension, x, z)) return false;
@@ -121,8 +142,9 @@ function applyUnlockedState(updates: [() => void, () => void][], dimension: stri
     markOpenCached(dimension, x, z);
     try {
       clearRequirementProperty(dimension, x, z);
+      clearCellRecordProperty(dimension, x, z);
     } catch {
-      /* Removing an optional stale requirement must not roll back an already opened chunk. */
+      /* Removing optional stale cell/requirement properties must not roll back an opened chunk. */
     }
     return true;
   } catch (error) {

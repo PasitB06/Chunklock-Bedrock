@@ -38,6 +38,7 @@ const ITEM_ID_MAP: Readonly<Record<string, string>> = {
 };
 
 export type LootRoll = Readonly<{ sourceItemId: string; baseCount: number }>;
+export type CostScalingMode = "standard" | "compressed" | "unique";
 export type BedrockItemResolution = Readonly<{
   sourceItemId: string;
   itemId: string;
@@ -120,11 +121,16 @@ export function resolveBedrockItemId(sourceItemId: string): BedrockItemResolutio
   };
 }
 
+export function getDifficultyMultiplier(difficulty: 1 | 2 | 3 | 4): number {
+  return difficulty <= 2 ? 1 : difficulty === 3 ? 4 : 16;
+}
+
 export function calculateRemainingCost(
   baseCount: number,
   dimensionId: string,
   unlockedCount: number,
-  difficulty: 1 | 2 | 3 | 4
+  difficulty: 1 | 2 | 3 | 4,
+  scalingMode: CostScalingMode = "standard"
 ): number {
   if (!Number.isSafeInteger(baseCount) || baseCount < 0)
     throw new RangeError("base count must be a non-negative integer");
@@ -137,6 +143,14 @@ export function calculateRemainingCost(
   const dimensionKey = dimensionId.startsWith("minecraft:") ? dimensionId.slice("minecraft:".length) : dimensionId;
   const step = dimensionKey === "the_end" ? 32 : 16;
   const dimensionMultiplier = Math.floor(unlockedCount / step) + 1;
-  const difficultyMultiplier = difficulty === 2 ? 1 : difficulty === 3 ? 4 : 16;
+  const difficultyMultiplier = getDifficultyMultiplier(difficulty);
+  if (scalingMode === "compressed") {
+    const compressedMultiplier = Math.max(1, Math.min(Math.floor(Math.sqrt(dimensionMultiplier)), 24));
+    return baseCount * compressedMultiplier * difficultyMultiplier;
+  }
+  if (scalingMode === "unique") {
+    const uniqueMultiplier = Math.min(Math.max(1, Math.ceil(dimensionMultiplier / 32)), 4);
+    return baseCount * uniqueMultiplier * difficultyMultiplier;
+  }
   return baseCount * dimensionMultiplier * difficultyMultiplier;
 }

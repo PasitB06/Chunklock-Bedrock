@@ -79,8 +79,11 @@ function makeRequirementHarness({
   const loot = makeLoot(tables, validItems);
   const api = { world };
   const modules = { loot };
-  const requirements = load("requirements", api, modules);
+  const cache = {};
+  const access = load("access", api, modules, cache);
+  const requirements = load("requirements", api, modules, cache);
   return {
+    access,
     props,
     biomeCalls,
     dimension,
@@ -88,7 +91,7 @@ function makeRequirementHarness({
     world,
     requirements,
     setBiomeUnavailable: (value) => (biomeUnavailable = value),
-    loadChunks: (system) => load("chunks", { world, system }, { ...modules, system }).startChunks(),
+    loadChunks: (system) => load("chunks", { world, system }, { ...modules, system }, cache).startChunks(),
   };
 }
 
@@ -372,7 +375,7 @@ test("unavailable biome queries retry later and corrupt stored requirements are 
   assert.equal(broken.biomeCalls.length, 0);
 });
 
-test("chunk scan initializes at most eight new requirements per interval and backfills later", () => {
+test("chunk scan initializes only frontier locked chunks adjacent to open terrain and backfills within budget", () => {
   const properties = {};
   for (let cx = -1; cx <= 2; cx++) {
     for (let cz = -1; cz <= 2; cz++) {
@@ -383,7 +386,7 @@ test("chunk scan initializes at most eight new requirements per interval and bac
   const harness = makeRequirementHarness({ properties });
   const player = {
     dimension: harness.dimension,
-    location: { x: 16, y: 64, z: 16 },
+    location: { x: 24, y: 64, z: 24 },
     onScreenDisplay: { setActionBar: () => {} },
   };
   harness.players.push(player);
@@ -392,15 +395,24 @@ test("chunk scan initializes at most eight new requirements per interval and bac
 
   assert.equal(intervals.length, 1);
   intervals[0].callback();
-  const firstInterval = [...harness.props.keys()].filter((key) => key.startsWith("chunklock:req:")).length;
-  assert.equal(firstInterval, 8);
+  const reqKeys = () => [...harness.props.keys()].filter((key) => key.startsWith("chunklock:req:"));
+  assert.equal(reqKeys().length, 4, "only the 4 frontier neighbors of (1,1) are rolled");
+  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:-1:-1"), false, "hidden rear chunks stay unrolled");
+  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:2:2"), false, "diagonal corners without open neighbor stay unrolled");
+
+  // Unlocking (2, 1) exposes new frontier chunks (3, 1), (2, 0), (2, 2) on the next scan.
+  harness.access.autoUnlockChunk("minecraft:overworld", 2, 1);
+  harness.players[0].location = { x: 40, y: 64, z: 24 };
   intervals[0].callback();
-  const secondInterval = [...harness.props.keys()].filter((key) => key.startsWith("chunklock:req:")).length;
-  assert.equal(secondInterval, 15, "remaining locked records are backfilled on later intervals");
+  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:2:0"), true);
+  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:2:2"), true);
+  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:3:1"), true);
 });
 
 test("chunk scan uses dimension 2D lookup plane at high altitude and disables prototype spam by default", () => {
-  const harness = makeRequirementHarness();
+  const harness = makeRequirementHarness({
+    properties: { "chunklock:open:minecraft:overworld:0:0": true },
+  });
   const blockQueries = [];
   const actions = [];
   let particles = 0;
@@ -429,6 +441,7 @@ test("chunk scan uses dimension 2D lookup plane at high altitude and disables pr
 test("End chunk scan exempts crystal-free central chunks while locking crystal and outer-island chunks", () => {
   const properties = {
     "chunklock:open:minecraft:the_end:0:0": true,
+    "chunklock:open:minecraft:the_end:63:0": true,
     "chunklock:cell:minecraft:the_end:0:0": 1,
     "chunklock:cell:minecraft:the_end:1:0": 1,
     "chunklock:cell:minecraft:the_end:2:0": 1,
@@ -471,4 +484,150 @@ test("End chunk scan exempts crystal-free central chunks while locking crystal a
   assert.equal(harness.props.has("chunklock:req:minecraft:the_end:64:0"), true, "outer End island rolls requirement");
   assert.equal(harness.props.has("chunklock:progress:unlocked:minecraft:the_end"), false, "exempt opens grant no credit");
   assert.equal(harness.props.has("chunklock:progress:unlocked:total"), false, "exempt opens grant no total credit");
+});
+
+test("Spectator and Creative share Survival requirement state without pre-rolling unseen locked terrain", () => {
+  const harness = makeRequirementHarness({
+    properties: {
+      "chunklock:open:minecraft:overworld:0:0": true,
+      "chunklock:cell:minecraft:overworld:0:0": 1,
+      "chunklock:cell:minecraft:overworld:1:0": 1,
+    },
+  });
+  let spectatorMode = "Spectator";
+  const spectatorPlayer = {
+    dimension: harness.dimension,
+    location: { x: 80, y: 80, z: 80 },
+    getGameMode: () => spectatorMode,
+    onScreenDisplay: { setActionBar: () => {} },
+  };
+  harness.players.push(spectatorPlayer);
+  const intervals = [];
+  const cache = {};
+  const loot = makeLoot(
+    {
+      "chunklock:biome/all_biome": table(item("minecraft:stone", 1, [count(1)])),
+      "chunklock:biome/plains": table(item("minecraft:oak_log", 1, [count(2)])),
+    },
+    ["minecraft:stone", "minecraft:oak_log", "minecraft:cobblestone"]
+  );
+  const api = {
+    GameMode: { Spectator: "Spectator", Survival: "Survival", Creative: "Creative" },
+    ItemTypes: { get: () => ({}) },
+    world: harness.world,
+    system: { runInterval: (callback) => intervals.push(callback) },
+  };
+  load("chunks", api, { loot }, cache).startChunks();
+
+  // Spectator flying over locked chunk (5, 5) without open neighbor creates no cell or req.
+  intervals[0]();
+  assert.equal(harness.props.has("chunklock:cell:minecraft:overworld:5:5"), false);
+  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:5:5"), false);
+
+  // Spectator hovering near open frontier (1, 0) does not pre-freeze a new req before Survival/Creative arrives.
+  spectatorPlayer.location = { x: 8, y: 64, z: 8 };
+  intervals[0]();
+  assert.equal(harness.props.has("chunklock:req:minecraft:overworld:1:0"), false);
+
+  // Creative/Survival generates the req once; future scans keep the exact saved req.
+  spectatorMode = "Creative";
+  intervals[0]();
+  const saved = harness.props.get("chunklock:req:minecraft:overworld:1:0");
+  assert.ok(saved);
+  harness.props.set("chunklock:progress:unlocked:minecraft:overworld", 1500);
+  spectatorMode = "Spectator";
+  intervals[0]();
+  assert.equal(harness.props.get("chunklock:req:minecraft:overworld:1:0"), saved);
+});
+
+test("existing chunk requirements remain preserved after unlockCount climbs to higher tiers", () => {
+  const existingReq = JSON.stringify({
+    schemaVersion: 1,
+    state: "locked",
+    biomeId: "minecraft:plains",
+    tableId: "chunklock:biome/plains",
+    sourceItemId: "minecraft:oak_log",
+    itemId: "minecraft:oak_log",
+    baseCount: 2,
+    remainingCost: 2,
+    difficulty: 2,
+  });
+  const harness = makeRequirementHarness({
+    properties: {
+      "chunklock:cell:minecraft:overworld:1:0": 1,
+      "chunklock:req:minecraft:overworld:1:0": existingReq,
+      "chunklock:progress:unlocked:minecraft:overworld": 2500,
+    },
+  });
+  assert.equal(harness.requirements.ensureChunkRequirement(harness.dimension, 1, 0), "existing");
+  assert.equal(harness.props.get("chunklock:req:minecraft:overworld:1:0"), existingReq);
+});
+
+test("8-tier progression loot covers 0..4096+ unlocks, uses catalogued icons, caps unique/compressed items, and cleans cell records on unlock", () => {
+  const { DISPLAY_ICON_INDEX } = load("display-icons-data", {});
+  const { LOOT_TABLES } = load("loot-tables-data", {});
+  const validItems = Object.keys(DISPLAY_ICON_INDEX);
+  const loot = makeLoot(LOOT_TABLES, validItems);
+  const progression = load("progression-loot", { ItemTypes: { get: () => ({}) } }, { loot, "loot-tables-data": { LOOT_TABLES } });
+
+  const tierExpectations = [
+    [0, 0],
+    [15, 0],
+    [16, 1],
+    [48, 2],
+    [112, 3],
+    [256, 4],
+    [512, 5],
+    [1024, 6],
+    [2048, 7],
+    [4096, 7],
+  ];
+  for (const [unlocked, expectedTier] of tierExpectations) {
+    assert.equal(progression.getProgressionTier(unlocked), expectedTier, `unlocked=${unlocked}`);
+    for (const dimensionId of ["minecraft:overworld", "minecraft:nether", "minecraft:the_end"]) {
+      for (let i = 0; i < 20; i++) {
+        const sample = (i + 0.13) / 25;
+        const rolled = progression.rollProgressionRequirement("minecraft:plains", dimensionId, unlocked, () => sample);
+        assert.ok(rolled.baseCount > 0, `baseCount must be positive for ${dimensionId} @ ${unlocked}`);
+        const resolved = loot.resolveBedrockItemId(rolled.sourceItemId);
+        assert.notEqual(
+          DISPLAY_ICON_INDEX[resolved.itemId],
+          undefined,
+          `item ${resolved.itemId} missing from DISPLAY_ICON_INDEX`
+        );
+        const cost = loot.calculateRemainingCost(rolled.baseCount, dimensionId, unlocked, 2, rolled.scalingMode);
+        if (rolled.scalingMode === "unique") {
+          assert.ok(cost >= 1 && cost <= 4, `unique item ${rolled.sourceItemId} cost ${cost} exceeded cap`);
+        }
+        if (rolled.scalingMode === "compressed") {
+          assert.ok(cost <= 24 * rolled.baseCount, `compressed item ${rolled.sourceItemId} exceeded cap`);
+        }
+      }
+    }
+  }
+
+  // Unlocking removes the spent cell record so recordedCells tracks only frontier/locked cells.
+  const harness = makeRequirementHarness({
+    properties: {
+      "chunklock:cell:minecraft:overworld:1:0": 1,
+      "chunklock:req:minecraft:overworld:1:0": JSON.stringify({
+        schemaVersion: 1,
+        state: "locked",
+        biomeId: "minecraft:plains",
+        tableId: "chunklock:biome/plains",
+        sourceItemId: "minecraft:stone",
+        itemId: "minecraft:stone",
+        baseCount: 1,
+        remainingCost: 1,
+        difficulty: 2,
+      }),
+    },
+  });
+  const access = load("access", { world: harness.world });
+  const player = {
+    getDynamicProperty: () => undefined,
+    setDynamicProperty: () => {},
+  };
+  assert.equal(access.unlockChunk(player, "minecraft:overworld", 1, 0), true);
+  assert.equal(harness.props.has("chunklock:cell:minecraft:overworld:1:0"), false);
 });

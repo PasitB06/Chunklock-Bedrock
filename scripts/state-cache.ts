@@ -125,6 +125,12 @@ export function markCellRecorded(dimensionId: string, cx: number, cz: number): v
   recordedCells.add(cellKey(dimensionId, cx, cz));
 }
 
+export function unmarkCellRecorded(dimensionId: string, cx: number, cz: number): void {
+  const key = cellKey(dimensionId, cx, cz);
+  recordedCells.delete(key);
+  completedCells.delete(key);
+}
+
 export function totalRecordedCells(): number {
   if (ensureStateHydrated()) return recordedCells.size;
   return recordedCells.size;

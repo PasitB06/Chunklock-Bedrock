@@ -1,6 +1,12 @@
 import { Dimension, world } from "@minecraft/server";
 import { getDimensionUnlockedCount, isOpenCell } from "./access.js";
-import { calculateRemainingCost, resolveBedrockItemId, resolveBiomeTable, rollLootTable } from "./loot.js";
+import { calculateRemainingCost, resolveBedrockItemId } from "./loot.js";
+import {
+  classifyCostScalingMode,
+  getProgressionTier,
+  rollProgressionRequirement,
+  selectBiomeLookupPlaneY,
+} from "./progression-loot.js";
 import {
   deleteRequirementCached,
   getRequirementCached,
@@ -130,7 +136,8 @@ export function setDifficulty(difficulty: ChunklockDifficulty): number {
     if (!coords) continue;
     const current = getChunkRequirement(coords.dimensionId, coords.cx, coords.cz);
     if (!current) continue;
-    const remainingCost = calculateRemainingCost(current.baseCount, coords.dimensionId, 0, difficulty);
+    const scalingMode = classifyCostScalingMode(current.sourceItemId);
+    const remainingCost = calculateRemainingCost(current.baseCount, coords.dimensionId, 0, difficulty, scalingMode);
     const updated: ChunkRequirement = { ...current, difficulty, remainingCost };
     world.setDynamicProperty(propertyId, JSON.stringify(updated));
     setRequirementCached(coords.dimensionId, coords.cx, coords.cz, updated);
@@ -139,27 +146,37 @@ export function setDifficulty(difficulty: ChunklockDifficulty): number {
   return rescaled;
 }
 
+function sampleBiomeId(dimension: Dimension, cx: number, cz: number, preferredY: number): string {
+  const x = cx * 16 + 8;
+  const z = cz * 16 + 8;
+  try {
+    return dimension.getBiome({ x, y: preferredY, z }).id;
+  } catch (error) {
+    const fallbackY = lookupPlaneY(dimension.id);
+    if (preferredY === fallbackY) throw error;
+    return dimension.getBiome({ x, y: fallbackY, z }).id;
+  }
+}
+
 function rollAndSaveRequirement(dimension: Dimension, cx: number, cz: number): ChunkRequirement | undefined {
   const dimensionId = dimension.id;
   const propertyId = requirementPropertyId(dimensionId, cx, cz);
   try {
-    const biomeId = dimension.getBiome({ x: cx * 16 + 8, y: lookupPlaneY(dimensionId), z: cz * 16 + 8 }).id;
-    const tableId = resolveBiomeTable(biomeId);
-    const rolled = rollLootTable(tableId);
+    const unlockedCount = getDimensionUnlockedCount(dimensionId);
+    const tier = getProgressionTier(unlockedCount);
+    const lookupY = selectBiomeLookupPlaneY(dimensionId, tier);
+    const biomeId = sampleBiomeId(dimension, cx, cz, lookupY);
+    const rolled = rollProgressionRequirement(biomeId, dimensionId, unlockedCount);
     const item = resolveBedrockItemId(rolled.sourceItemId);
     const difficulty = getDifficulty();
     const baseCount = rolled.baseCount;
-    const remainingCost = calculateRemainingCost(
-      baseCount,
-      dimensionId,
-      getDimensionUnlockedCount(dimensionId),
-      difficulty
-    );
+    const scalingMode = item.usedFallback ? "standard" : rolled.scalingMode;
+    const remainingCost = calculateRemainingCost(baseCount, dimensionId, unlockedCount, difficulty, scalingMode);
     const requirement: ChunkRequirement = {
       schemaVersion: 1,
       state: "locked",
       biomeId,
-      tableId,
+      tableId: rolled.tableId,
       sourceItemId: item.sourceItemId,
       itemId: item.itemId,
       baseCount,
