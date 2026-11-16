@@ -39,6 +39,8 @@ Dependencies are already installed on the original development machine; use `npm
 5. Wait for nearby locked chunk borders and their requirement item/count labels. Right-click the centered item display with no matching item, then with matching items split across several inventory slots (including offhand) to check feedback and payment. The selected hotbar slot is consumed first; matching items are deducted from the inventory and offhand as needed, even in Creative mode. A barrier in the selected hand unlocks for testing and is preserved.
 
 The starter pins stable Script API `@minecraft/server` **2.6.0** and declares a minimum Bedrock version of **1.26.60**.
+Chunklock Resources declares the `pbr` capability for Vibrant Visuals compatibility. After updating, restart Minecraft and select **Settings -> Video -> Graphics Mode -> Vibrant Visuals** on a supported device. Other active resource packs must also be compatible. Border transparency and requirement icons still require in-game verification in this graphics mode.
+
 It does not require Beta APIs or Experiments. Restart Minecraft if newly deployed packs are not listed.
 Building and copying files does not prove gameplay works; the readiness message must be checked in a world.
 

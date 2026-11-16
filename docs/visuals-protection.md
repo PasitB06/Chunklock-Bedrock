@@ -124,3 +124,11 @@ The movement collision capability was added in Behavior Pack version 0.2.3. The 
 ## Wall orientation correction
 
 The wall manager now synchronizes `chunklock:wall_yaw` to the client: north/south edges use 0 degrees and east/west edges use 90 degrees. The model subtracts body yaw from this explicit target rather than combining body and head angles. Versioned `v4` helper keys replace older helpers. This adapts Java border display transforms to a Bedrock entity property; access and payment state are unchanged. Automated checks cover the rotation expression; rendered alignment still requires Minecraft verification after restarting the game.
+
+## Vibrant Visuals compatibility
+
+Resource Pack 0.2.17 declares `capabilities: ["pbr"]`; Behavior Pack 0.2.22 depends on that resource version. The existing minimum engine version 1.26.60 exceeds the required 1.21.120. Pack UUIDs are retained so updates replace the same packs.
+
+This is a Bedrock-only pack-loading capability with no Java function counterpart, caller, callee or gameplay input. Java `chunk_init/init_locked_chunk` creates border displays and calls requirement initialization; the Bedrock wall/display managers continue consuming the same persistent access and requirement state. This manifest change supplies renderer compatibility metadata and does not change those functions or state. Default Vibrant Visuals lighting/material parameters apply; no custom PBR textures or lighting overrides are introduced.
+
+See Microsoft's [Vibrant Visuals resource pack guide](https://learn.microsoft.com/en-us/minecraft/creator/documents/vibrantvisuals/vvresourcepacks). Restart Minecraft after deploying, enable both updated packs, and select Vibrant Visuals in Video settings on supported hardware. Check walls from both sides and at overlapping corners, requirement icons/counts, payment and world rejoin. Custom material transparency under the Vibrant Visuals renderer is not established by manifest/build checks; these runtime checks remain pending.
