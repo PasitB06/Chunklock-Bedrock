@@ -4,7 +4,18 @@
     "description": {
       "identifier": "chunklock:requirement_display",
       "is_spawnable": false,
-      "is_summonable": true
+      "is_summonable": true,
+      "properties": {
+        "chunklock:display_yaw": {
+          "type": "int",
+          "range": [
+            0,
+            270
+          ],
+          "default": 0,
+          "client_sync": true
+        }
+      }
     },
     "components": {
       "minecraft:physics": {
@@ -12,8 +23,8 @@
         "has_collision": false
       },
       "minecraft:collision_box": {
-        "width": 0.4,
-        "height": 0.6
+        "width": 0.35,
+        "height": 0.35
       },
       "minecraft:health": {
         "value": 100,

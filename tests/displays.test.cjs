@@ -53,9 +53,11 @@ function makeHarness({ players = [], properties = {} } = {}) {
       dimension,
       location: { ...location },
       dynamicProperties,
+      properties: new Map(),
       equipment,
       commands: [],
       runCommand: (command) => entity.commands.push(command),
+      setProperty: (key, value) => entity.properties.set(key, value),
       getDynamicProperty: (key) => dynamicProperties.get(key),
       setDynamicProperty: (key, value) => {
         if (value === undefined) dynamicProperties.delete(key);
@@ -73,7 +75,7 @@ function makeHarness({ players = [], properties = {} } = {}) {
             }
           : undefined,
       setRotation: (rotation) => {
-        entity.rotation = rotation;
+        entity.rotation = { ...rotation };
       },
       teleport: (nextLocation) => {
         entity.location = { ...nextLocation };
@@ -186,10 +188,12 @@ test("requirement displays appear only beside nearby locked chunks with requirem
   assert.equal(harness.intervals.length, 1);
   assert.equal(harness.entities.length, 1);
   const display = harness.entities[0];
-  assert.deepEqual(display.location, { x: 15.95, y: 65.17, z: 8 });
+  assert.deepEqual(display.location, { x: 15.95, y: 65.97, z: 8 });
   assert.equal(display.nameTag, "Oak Log\n× 16");
   assert.equal(display.getDynamicProperty("chunklock:display:cx"), 1);
   assert.equal(display.getDynamicProperty("chunklock:display:cz"), 0);
+  assert.equal(display.properties.get("chunklock:display_yaw"), 90);
+  assert.deepEqual(display.rotation, { x: 0, y: 90 });
   assert.equal(display.equipment.get("Mainhand").typeId, "minecraft:oak_log");
   assert.deepEqual(display.commands, ["replaceitem entity @s slot.weapon.mainhand 0 minecraft:oak_log 1"]);
 
@@ -238,7 +242,13 @@ test("requirement display pack files define a compact helper with held-item rend
     fs.readFileSync(path.join(root, "behavior_packs/chunklock/entities/requirement_display.json"), "utf8")
   )["minecraft:entity"];
   const components = behavior.components;
-  assert.deepEqual(components["minecraft:collision_box"], { width: 0.4, height: 0.6 });
+  assert.deepEqual(behavior.description.properties["chunklock:display_yaw"], {
+    type: "int",
+    range: [0, 270],
+    default: 0,
+    client_sync: true,
+  });
+  assert.deepEqual(components["minecraft:collision_box"], { width: 0.35, height: 0.35 });
   assert.deepEqual(components["minecraft:physics"], { has_gravity: false, has_collision: false });
   assert.equal(components["minecraft:pushable"].is_pushable, false);
   assert.equal(components["minecraft:breathable"].breathes_solids, true);

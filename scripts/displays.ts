@@ -8,7 +8,7 @@ const MAX_DISPLAYS = 128;
 const SPAWN_BUDGET = 4;
 const VIEW_DISTANCE = 24;
 const OPEN_SIDE_OFFSET = 0.05;
-const DISPLAY_HEIGHT = 0.9;
+const DISPLAY_ELEVATION = 0.35;
 const dimensions = ["overworld", "nether", "the_end"];
 let failedAt = -Infinity;
 let started = false;
@@ -79,7 +79,8 @@ function updateDisplay(entity: Entity, candidate: DisplayCandidate) {
   ) {
     entity.teleport({ x: candidate.x, y: candidate.y, z: candidate.z });
   }
-  entity.setRotation({ x: 0, y: 0 });
+  entity.setProperty?.("chunklock:display_yaw", candidate.rotation);
+  entity.setRotation({ x: 0, y: candidate.rotation });
 }
 
 function candidateForEdge(dimension: Dimension, edge: WallEdge, player: Player): DisplayCandidate | undefined {
@@ -97,7 +98,7 @@ function candidateForEdge(dimension: Dimension, edge: WallEdge, player: Player):
     lockedX: edge.lockedCell.x,
     lockedZ: edge.lockedCell.z,
     x: position.x,
-    y: head.y - DISPLAY_HEIGHT / 2,
+    y: head.y + DISPLAY_ELEVATION,
     z: position.z,
     rotation: openSideRotation(edge),
     priority,
