@@ -2,20 +2,22 @@
 
 A TypeScript project for Minecraft Bedrock, using the behavior of a local Java Chunklock datapack as a development reference.
 
-**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See [prototype instructions](docs/chunk-prototype.md). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are implemented; see [visuals and protection](docs/visuals-protection.md). All Java loot tables compile and roll in Bedrock TypeScript, and locked chunks persist biome-based requirements and source-scaled costs. Nearby requirement icons/counts, whole-inventory payment, a barrier test shortcut, and world/payer unlock totals are implemented. Validate display visibility, click targeting and item deduction in Minecraft.
+**Current status:** an experimental entity-free chunk marker and bounded propagation system is ready for manual testing. See prototype instructions (local reference: `docs/chunk-prototype.md`). Translucent border walls, block/right-click/combat protection and per-tick movement pullback are implemented; see visuals and protection (local reference: `docs/visuals-protection.md`). All Java loot tables compile and roll in Bedrock TypeScript, and locked chunks persist biome-based requirements and source-scaled costs. Nearby requirement icons/counts, whole-inventory payment, a barrier test shortcut, and world/payer unlock totals are implemented. Validate display visibility, click targeting and item deduction in Minecraft.
 
 This directory is the Git repository root. The Java reference is kept outside the repository at `../java_mod/data` and is not published to GitHub.
 
-## Documentation
+## Local documentation
+
+Development documentation and AI/editor configuration are kept locally and excluded from Git. Never force-add these files; the exclusions in `.gitignore` apply to every commit and push. A fresh clone does not include these local references.
 
 | Document | Purpose |
 | --- | --- |
-| [Reference guide](docs/reference/README.md) | Explains the Java system and how its parts connect |
-| [Domain glossary](CONTEXT.md) | Defines chunks, unlock requirements, payers and progress |
-| [Bedrock mapping](docs/reference/bedrock-porting.md) | Maps responsibilities to future Bedrock work and records implementation status |
-| [Flat icon plaques](docs/flat-icon-plaques.md) | Explains centered icons, Vanilla texture mapping and regeneration |
-| [Loot requirements](docs/loot-requirements.md) | Explains loot compilation, per-chunk requirements, border displays, and inventory payment |
-| [Agent rules](AGENTS.md) | Requires English-only writing, reference-based development and a commit/push for each completed capability |
+| Reference guide (local reference: `docs/reference/README.md`) | Explains the Java system and how its parts connect |
+| Domain glossary (local reference: `CONTEXT.md`) | Defines chunks, unlock requirements, payers and progress |
+| Bedrock mapping (local reference: `docs/reference/bedrock-porting.md`) | Maps responsibilities to future Bedrock work and records implementation status |
+| Flat icon plaques (local reference: `docs/flat-icon-plaques.md`) | Explains centered icons, Vanilla texture mapping and regeneration |
+| Loot requirements (local reference: `docs/loot-requirements.md`) | Explains loot compilation, per-chunk requirements, border displays, and inventory payment |
+| Agent rules (local reference: `AGENTS.md`) | Requires English-only writing, reference-based development and a commit/push for each completed capability |
 
 All repository documentation, comments, authored messages and commit messages must be written in English.
 

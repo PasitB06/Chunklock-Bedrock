@@ -13,3 +13,23 @@ __pycache__/
 # Java reference material must remain outside this repository.
 java_mod/
 **/java_mod/
+
+# Local documentation, editor settings and AI assistant artifacts must never be published.
+docs/
+.vscode/
+.idea/
+AGENTS.md
+AGENT.md
+agent.md
+agents.md
+agene.md
+CONTEXT.md
+CLAUDE.md
+GEMINI.md
+.cursorrules
+.cursor/
+.claude/
+.codex/
+.github/copilot-instructions.md
+.github/instructions/
+.github/prompts/
