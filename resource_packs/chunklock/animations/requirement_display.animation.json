@@ -14,13 +14,13 @@
         "rightArm": {
           "rotation": [
             0,
-            0,
+            -45,
             0
           ]
         },
         "rightItem": {
           "rotation": [
-            0,
+            -75,
             0,
             0
           ],
